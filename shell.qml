@@ -961,7 +961,9 @@ ShellRoot {
         onFilePathChanged: { savedPreview = ""; pendingPath = ""; art.requestPaint() }
         Canvas {
             id: art
-            anchors.fill: parent
+            anchors.centerIn: parent
+            width: 480; height: 270
+            scale: Math.min(preview.width / width, preview.height / height)
             canvasSize: Qt.size(480,270)
             onAvailableChanged: if (available) requestPaint()
             onPaint: {
