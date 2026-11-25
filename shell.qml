@@ -18,6 +18,52 @@ ShellRoot {
     property string pendingShell: ""
     property string checkResult: ""
     property bool switchingShell: false
+    property var packageCatalog: ({})
+    property string packageName: ""
+    property string packageAction: ""
+    property string packagePlanAction: ""
+    property string packagePlanName: ""
+    property string packageLog: ""
+    property bool packageBusy: false
+    function packageInfo(name) { return packageCatalog[name] || ({managed:false,source:false,recipe:false,commit:""}) }
+    function refreshPackages() { if(!packageScan.running) packageScan.running = true }
+    function preparePackage(name, action) {
+        if (packageBusy || switchingShell || externalShell === name) return
+        packagePlanName = name
+        packagePlanAction = action
+    }
+    function performPackage(name, action) {
+        if (packageBusy || switchingShell || externalShell === name) return
+        packagePlanName = ""
+        packagePlanAction = ""
+        packageName = name
+        packageAction = action
+        packageLog = ""
+        packageBusy = true
+        packageWorker.command = ["python3",Quickshell.shellPath("runtime/manager.py"),action,name]
+        packageWorker.running = true
+    }
+    function appendPackageLog(line) { packageLog = (packageLog + line + "\n").slice(-18000) }
+    Process {
+        id: packageScan
+        command: ["python3",Quickshell.shellPath("runtime/manager.py"),"catalog"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.packageCatalog = JSON.parse(text) } catch(e) { root.status = "Could not read installed projects" }
+            }
+        }
+    }
+    Process {
+        id: packageWorker
+        stdout: SplitParser { onRead: function(line) { root.appendPackageLog(line) } }
+        stderr: SplitParser { onRead: function(line) { root.appendPackageLog(line) } }
+        onExited: function(code) {
+            root.packageBusy = false
+            root.status = code === 0 ? root.packageName + " · " + root.packageAction + " completed" : root.packageName + " · operation failed; see log"
+            root.refreshPackages()
+        }
+    }
+    Timer { interval: 1200; running: true; repeat: false; onTriggered: root.refreshPackages() }
     readonly property bool nativeDesktop: externalShell === ""
     readonly property var runnableShells: ["Serpantinum","Noctalia","DankMaterialShell","Caelestia","Illogical Impulse","iNiR","Ambxst"]
     function runtimeSupported(name) {
@@ -30,10 +76,12 @@ ShellRoot {
         if (runnableShells.indexOf(name)<0) return "Separate session integration required"
         if (!runtimeSupported(name)) return "Unsupported on current compositor"
         if (externalShell === name) return "Original runtime launched"
-        return "Requires installed original runtime"
+        const info = packageInfo(name)
+        if (info.managed) return "Installed · " + info.commit
+        return info.recipe ? "Managed installation available" : "Upstream install required"
     }
     function selectOriginal(name) {
-        if (switchingShell || externalShell === name) return
+        if (switchingShell || packageBusy || externalShell === name) return
         if (!runtimeSupported(name)) { status = runtimeDescription(name); return }
         pendingShell = name
         checkResult = ""
@@ -1019,7 +1067,7 @@ ShellRoot {
         }
         page = page === name ? "" : name
     }
-    function openSettings() { stopOriginalPanels(); if (page !== "settings") page = "settings" }
+    function openSettings() { stopOriginalPanels(); refreshPackages(); if (page !== "settings") page = "settings" }
     function showSettings(section) { settingsTab = section; openSettings() }
     function showWallpapers() { editTab = "Wallpapers"; showSettings("Edit Mode") }
     function cycleWindow() {
@@ -2184,7 +2232,7 @@ ShellRoot {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
                         RowLayout {
                             Layout.fillWidth: true
-                            Muted { text: "v0.3.0 alpha"; Layout.fillWidth: true }
+                            Muted { text: "v1.0.0-dev"; Layout.fillWidth: true }
                             Pill { text: "×"; implicitWidth: 34; implicitHeight: 32; onClicked: root.page = "" }
                         }
                     }
@@ -2384,26 +2432,77 @@ ShellRoot {
             Section {
                 RowLayout {
                     Layout.fillWidth: true
-                    Caption { text: root.nativeDesktop ? "Deyra · select an original shell" : root.externalShell + " · original runtime"; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Pill { text: "Return to Deyra"; visible: !root.nativeDesktop; enabled: !root.switchingShell; onClicked: root.returnToDeyra() }
+                    Caption { text: root.nativeDesktop ? "Original shell library" : root.externalShell + " · original runtime"; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Pill { text: "Refresh"; enabled: !packageBusy; onClicked: root.refreshPackages() }
+                    Pill { text: "Return to Deyra"; visible: !root.nativeDesktop; enabled: !root.switchingShell && !root.packageBusy; onClicked: root.returnToDeyra() }
                 }
-                Muted { text: "Launch the installed upstream shell with its own bar, launcher, widgets, settings and services. Deyra does not substitute its own UI. Install the original runtime first."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Muted { text: "Install original runtimes, then Apply. Source-only projects have no managed installer yet. No generated lookalikes."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Rectangle {
+                    visible: root.packagePlanName !== ""
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: visible ? confirmColumn.implicitHeight+20 : 0
+                    color: root.uiPanel; radius: 12; border.color: root.accent
+                    ColumnLayout {
+                        id: confirmColumn
+                        anchors.fill: parent; anchors.margins: 10; spacing: 6
+                        Caption { text: root.packagePlanAction + " · " + root.packagePlanName; font.weight: Font.DemiBold }
+                        Muted {
+                            Layout.fillWidth: true; wrapMode: Text.Wrap
+                            text: root.packagePlanAction === "remove"
+                                ? "Remove Deyra-managed runtime versions only. Personal settings and shared packages are kept."
+                                : "Install original sources and dependencies. APT may ask for administrator authentication, but package removal is prohibited. Existing compositor files are not replaced by Deyra's installer. The upstream shell may manage its own settings."
+                        }
+                        RowLayout {
+                            Item { Layout.fillWidth: true }
+                            Pill { text: "Cancel"; onClicked: { root.packagePlanName = ""; root.packagePlanAction = "" } }
+                            Pill { text: "Confirm"; deyraSelected: true; onClicked: root.performPackage(root.packagePlanName,root.packagePlanAction) }
+                        }
+                    }
+                }
+                Rectangle {
+                    visible: root.packageBusy || root.packageLog !== ""
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: visible ? 106 : 0
+                    color: root.uiBase; radius: 8; border.color: root.uiLine
+                    ColumnLayout {
+                        anchors.fill: parent; anchors.margins: 8; spacing: 4
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Caption { text: root.packageBusy ? root.packageAction + " · " + root.packageName + "…" : "Last operation · " + root.packageName; Layout.fillWidth: true; elide: Text.ElideRight }
+                            BusyIndicator { running: root.packageBusy; visible: running; Layout.preferredWidth: 24; Layout.preferredHeight: 24 }
+                            Pill { text: "Clear"; visible: !root.packageBusy; onClicked: root.packageLog = "" }
+                        }
+                        ScrollView {
+                            Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                            TextArea {
+                                readOnly: true
+                                text: root.packageLog
+                                color: root.foreground
+                                font.family: "monospace"; font.pixelSize: 10
+                                wrapMode: TextEdit.Wrap
+                                background: Item {}
+                            }
+                        }
+                    }
+                }
                 GridView {
                     id: originalGrid
                     Layout.fillWidth: true; Layout.fillHeight: true
                     clip: true
                     cellWidth: width / Math.max(1,Math.floor(width/300))
-                    cellHeight: 300
+                    cellHeight: 290
                     model: root.presets
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     delegate: Rectangle {
                         id: originalCard
                         required property var modelData
+                        readonly property var info: root.packageInfo(modelData.name)
+                        readonly property bool canModify: !root.packageBusy && !root.switchingShell && root.externalShell !== modelData.name
                         width: originalGrid.cellWidth-10
                         height: originalGrid.cellHeight-10
                         color: root.uiPanel; radius: 14
-                        border.color: root.uiLine
+                        border.color: root.externalShell === modelData.name ? root.accent : root.uiLine
                         ColumnLayout {
                             anchors.fill: parent; anchors.margins: 10; spacing: 6
                             Rectangle {
@@ -2412,26 +2511,36 @@ ShellRoot {
                                 PresetPreview { anchors.fill: parent; profile: originalCard.modelData }
                             }
                             Caption { text: originalCard.modelData.name; font.pixelSize: 17; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
-                            Muted { text: root.upstreamMedia[originalCard.modelData.name].credit; Layout.fillWidth: true; elide: Text.ElideRight }
                             Muted { text: root.runtimeDescription(originalCard.modelData.name); Layout.fillWidth: true; elide: Text.ElideRight }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Pill { text: root.originalTask === originalCard.modelData.name ? "Downloading…" : "Download configs"; enabled: !upstreamFetch.running; Layout.fillWidth: true; onClicked: root.fetchOriginal(originalCard.modelData) }
-                                Pill { text: "GitHub"; onClicked: Qt.openUrlExternally(originalCard.modelData.url) }
+                                Pill {
+                                    text: originalCard.info.recipe ? (originalCard.info.managed ? "Update" : "Install") : (originalCard.info.source ? "Update source" : "Download source")
+                                    enabled: originalCard.canModify
+                                    Layout.fillWidth: true
+                                    onClicked: {
+                                        if (originalCard.info.recipe) root.preparePackage(originalCard.modelData.name,originalCard.info.managed ? "update" : "install")
+                                        else root.performPackage(originalCard.modelData.name,originalCard.info.source ? "source-update" : "source")
+                                    }
+                                }
+                                Pill { text: "Guide"; onClicked: Qt.openUrlExternally(originalCard.modelData.url + "#readme") }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Pill { text: root.externalShell === originalCard.modelData.name ? "Original active" : "Launch original"; deyraSelected: root.externalShell === originalCard.modelData.name; enabled: !root.switchingShell && root.runtimeSupported(originalCard.modelData.name) && root.externalShell !== originalCard.modelData.name; Layout.fillWidth: true; onClicked: root.selectOriginal(originalCard.modelData.name) }
-                                Pill { text: "Showcase"; onClicked: Qt.openUrlExternally(root.upstreamMedia[originalCard.modelData.name].gallery) }
+                                Pill {
+                                    text: root.externalShell === originalCard.modelData.name ? "Original active" : "Apply"
+                                    deyraSelected: root.externalShell === originalCard.modelData.name
+                                    enabled: !root.packageBusy && !root.switchingShell && root.runtimeSupported(originalCard.modelData.name) && root.externalShell !== originalCard.modelData.name
+                                    Layout.fillWidth: true
+                                    onClicked: root.selectOriginal(originalCard.modelData.name)
+                                }
+                                Pill { text: "Remove"; visible: originalCard.info.managed; enabled: originalCard.canModify; onClicked: root.preparePackage(originalCard.modelData.name,"remove") }
+                                Pill { text: "Source"; onClicked: Qt.openUrlExternally(originalCard.modelData.url) }
                             }
                         }
                     }
                 }
-                RowLayout {
-                    Layout.fillWidth: true
-                    Muted { text: "Source downloads do not install runtimes. Use the upstream installation instructions. Reopen this manager: qs -c deyra ipc call deyra settings."; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                    Pill { text: "Open originals"; onClicked: Qt.openUrlExternally("file://" + root.statePath + "/upstream") }
-                }
+                Muted { text: "Original shells keep their own settings and services. Reopen Deyra Settings: qs -c deyra ipc call deyra settings."; Layout.fillWidth: true; wrapMode: Text.Wrap }
             }
         }
         Component {
@@ -2868,6 +2977,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.3.0 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 1.0.0-dev" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
