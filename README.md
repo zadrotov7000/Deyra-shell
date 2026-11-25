@@ -2,11 +2,11 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.1.3 alpha — initial implementation with a selectable preset library, not a tested release.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.2.0 alpha — interface redesign, native bar modules and motion system. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
-Requirements: a running Wayland compositor with layer-shell and foreign-toplevel-management support, Quickshell 0.2.1 or newer built with Wayland, PipeWire and notifications modules, Qt Quick Controls/Layouts/Dialogs, curl and optionally brightnessctl. On Debian, check your installed Quickshell version and QML modules. JetBrains Mono is optional.
+Requirements: a running Wayland compositor with layer-shell and foreign-toplevel-management support, Quickshell 0.2.1 or newer built with Wayland, PipeWire and notifications modules, Qt Quick Controls/Layouts/Dialogs, curl and optionally brightnessctl. On Debian, check your installed Quickshell version and QML modules. Uses the system sans-serif font; no dedicated icon font required.
 
 ```sh
 git clone https://github.com/zadrotov7000/Deyra-shell.git
@@ -19,7 +19,14 @@ Run in a terminal for the first smoke test; Ctrl+C stops the shell. The installe
 
 Before testing, temporarily stop other panels, wallpaper renderers and notification daemons using their own documented controls if you want to avoid conflicts. In particular, only one notification daemon may own the desktop notification D-Bus name. Do not remove the existing desktop or lock screen.
 
-## Implemented in the initial source
+## Version 0.2.0 — visual overhaul
+
+- Centered layer-shell settings window instead of a tiled application window, with grouped navigation, dark input controls, smaller default palette and expandable access to all 80 colors.
+- Event-driven opening/closing transitions for settings, launcher, control center, notifications and the window switcher. Hover, press, switch and workspace indicators animate without a continuously running shader. Disable motion in Settings → Performance → Reduce motion.
+- Native vector status icons, Niri workspace event stream, Hyprland workspace polling, NetworkManager connectivity status, and a dock with active-window indicators and fallback icons.
+- The new design retains existing saved settings and twelve selectable layout profiles. Native dialogs, layer-shell focus and compositor IPC need graphical testing.
+
+## Implemented features
 
 - TQQ-inspired island bar, desktop wallpaper surface, desktop clock option.
 - Running-window dock and radial window switcher (up to 12 windows, compositor protocol required).
@@ -34,7 +41,7 @@ Before testing, temporarily stop other panels, wallpaper renderers and notificat
 
 ## Appearance editor
 
-Open Settings → Themes. Choose All or an individual component (Bar, Dock, Launcher, Control Center, Notifications or Window Switcher). Select Accent or Background, then choose from 80 swatches, enter a six-digit HEX value, or open the Qt color picker. The preview updates immediately. Opacity and corner radius are also configurable per scope. Inherit removes an individual component override; Reset appearance to preset restores its original colors and geometry without changing the chosen layout. Global edits do not overwrite existing component overrides.
+Open Settings → Themes. Choose All or an individual component (Bar, Dock, Launcher, Control Center, Notifications or Window Switcher). Select Accent or Background, expand All 80 colors if desired, then choose from the swatches, enter a six-digit HEX value, or open the Qt color picker. The preview updates immediately. Opacity and corner radius are also configurable per scope. Inherit removes an individual component override; Reset appearance to preset restores its original colors and geometry without changing the chosen layout. Global edits do not overwrite existing component overrides.
 
 QtQuick.Dialogs is required for color and file pickers (Debian: `qml6-module-qtquick-dialogs`). Appearance settings persist in settings.json. The editor has not yet been runtime-tested on Niri or Hyprland.
 
@@ -100,7 +107,7 @@ The switcher can also be confirmed with Enter/click and cancelled with Escape; A
 ## Roadmap
 
 - Secure native session lock with PAM; use your existing tested lock screen until implemented.
-- Workspace, tray, Wi-Fi, Bluetooth, media, weather, calendar, OSD, power controls.
+- Tray, Wi-Fi connection management, Bluetooth, media, weather, calendar, OSD, power controls. Workspace and network status integration is present but needs testing.
 - Full Edit Mode with component configuration, live previews, draggable modules, additional layout variants and per-component animations.
 - Animated local wallpapers with pause-on-fullscreen and reduced-quality mode; daily, favorites, collections, transitions and image-derived palette.
 - Profile usage-time tracking, language and keybind editor, performance profiles, update UI.
