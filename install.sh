@@ -17,6 +17,7 @@ if [ -e "$target/shell.qml" ] || [ -L "$target/shell.qml" ]; then
 fi
 mkdir -p "$target/ports" "$target/runtime"
 install -m 644 runtime/upstream.py "$target/runtime/upstream.py"
+install -m 644 runtime/manager.py "$target/runtime/manager.py"
 if ! command -v python3 >/dev/null 2>&1; then
     printf '%s\n' "Optional dependency missing: python3 (original shell switching unavailable)." >&2
 fi
