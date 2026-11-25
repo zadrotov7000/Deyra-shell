@@ -2,7 +2,7 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.1 alpha — initial implementation, not a tested release.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.1.1 alpha — initial implementation with a selectable preset library, not a tested release.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
@@ -28,6 +28,7 @@ Before testing, temporarily stop other panels, wallpaper renderers and notificat
 - Notification popups, history and do-not-disturb.
 - Settings window with seven top-level tabs: Themes, Edit Mode, Community, Profile, System, Performance, Updates.
 - Theme accent, opacity, corner radius, bar position/height, module toggles, dock/clock toggles and local avatar.
+- Twelve original Deyra style presets with source credits and a miniature palette preview. Open **Edit Mode → Presets**, select All or an individual component, then Apply. All changes the global style and resets component overrides; individual styles can be mixed across Bar, Dock, Launcher, Control Center, Notifications and Window Switcher. Use global clears an individual override. Presets change colors, transparency, rounding and selected layout options, not upstream functionality.
 - Static local wallpapers and on-demand online wallpaper search in fixed nature/space categories, with safe-only filter and local download. Click a result to download and apply; no API key needed. Internet results are user-uploaded content and subject to provider availability.
 - Settings persistence in `$XDG_CONFIG_HOME/deyra-shell/settings.json` (normally `~/.config/deyra-shell/settings.json`).
 
@@ -73,10 +74,10 @@ The switcher can also be confirmed with Enter/click and cancelled with Escape; A
 
 - Secure native session lock with PAM; use your existing tested lock screen until implemented.
 - Workspace, tray, Wi-Fi, Bluetooth, media, weather, calendar, OSD, power controls.
-- Full Edit Mode with component configuration, live previews, draggable modules, layout presets and per-component animations.
+- Full Edit Mode with component configuration, live previews, draggable modules, additional layout variants and per-component animations.
 - Animated local wallpapers with pause-on-fullscreen and reduced-quality mode; daily, favorites, collections, transitions and image-derived palette.
 - Profile usage-time tracking, language and keybind editor, performance profiles, update UI.
-- Community presets and widgets: opt-in, author attribution and license review before redistribution. No third-party shell code or assets imported in this alpha.
+- Community widgets and deeper upstream component ports: opt-in, author attribution and license review before redistribution. No third-party shell code or assets imported in this alpha.
 
 ### Preset inspiration / credits
 
@@ -84,7 +85,7 @@ The switcher can also be confirmed with Enter/click and cancelled with Escape; A
 | --- | --- |
 | TQQ Rice | [zadrotov7000/TQQ-Niri-rice](https://github.com/zadrotov7000/TQQ-Niri-rice) |
 | Noctalia | [noctalia-dev/noctalia](https://github.com/noctalia-dev/noctalia) |
-| DankMaterialShell | [AvengeMedia/DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) |
+| DankMaterialShell | [duxlabs-dev/dux-shell](https://github.com/duxlabs-dev/dux-shell) (formerly AvengeMedia/DankMaterialShell) |
 | Caelestia | [caelestia-dots/shell](https://github.com/caelestia-dots/shell) |
 | Illogical Impulse | [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland) |
 | HyDE | [HyDE-Project/HyDE](https://github.com/HyDE-Project/HyDE) |
@@ -92,7 +93,7 @@ The switcher can also be confirmed with Enter/click and cancelled with Escape; A
 | iNiR | [snowarch/iNiR](https://github.com/snowarch/iNiR) |
 | DotFriedRice | [nickjj/dotfriedrice](https://github.com/nickjj/dotfriedrice) |
 | Ambxst | [Axenide/Ambxst](https://github.com/Axenide/Ambxst) |
-| DarkShadow | Original author/repository to be confirmed |
-| Serpantinum | Original author/repository to be confirmed |
+| DarkShadow | [shadowww-dev/DarkShadowShell](https://github.com/shadowww-dev/DarkShadowShell) |
+| Serpantinum | [ilyamiro/serpantinum](https://github.com/ilyamiro/serpantinum) |
 
-The above are planned references, not bundled themes or endorsements. Project license not yet selected by owner. Runtime behavior, memory consumption and compositor compatibility have not been tested in a graphical session.
+The above are sources of inspiration for selectable Deyra-made style presets, not bundled upstream configurations, exact replicas or endorsements. No upstream license is claimed for original Deyra presets. Project license not yet selected by owner. Runtime behavior, memory consumption and compositor compatibility have not been tested in a graphical session.
