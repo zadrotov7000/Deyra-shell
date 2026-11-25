@@ -13,6 +13,21 @@ import Quickshell.Services.Notifications
 ShellRoot {
     id: root
     property string page: ""
+    property var tipOwner: null
+    property var tipScreen: null
+    property string tipText: ""
+    property real tipX: 0
+    function showBarTip(owner, output, label) {
+        if (!owner || !label || page !== "") return
+        const screen = Quickshell.screens.find(function(s){return s.name === output})
+        if (!screen) return
+        tipScreen = screen
+        tipX = owner.mapToItem(null,owner.width/2,0).x
+        tipOwner = owner
+        tipText = label
+    }
+    function hideBarTip(owner) { if (!owner || owner === tipOwner) { tipText = ""; tipOwner = null } }
+    onPageChanged: hideBarTip(null)
     readonly property bool useDuxDesktopClock: prefs.useOriginalPorts && (prefs.desktopClockStyle === "dux" || (prefs.desktopClockStyle === "source" && prefs.activePreset === "DankMaterialShell"))
     property string settingsTab: "Themes"
     property string editTab: "Bar"
@@ -662,6 +677,9 @@ ShellRoot {
         return dynamicColors ? Object.assign({}, base, {accent:paletteColor("primary",base.accent), bg:paletteColor("background",base.bg)}) : base
     }
     function applyPreset(preset, scope) {
+        if (!preset || !presets.some(function(p){return p.name===preset.name})) return
+        hideBarTip(null)
+        stopOriginalPanels()
         if (scope === "All") {
             prefs.accent = preset.accent
             prefs.background = preset.bg
@@ -681,17 +699,31 @@ ShellRoot {
             if (scope === "Bar") applySourceBar(preset.name)
             if (scope === "Window Switcher") applySwitcherSource(preset.name)
         } else return
-        status = preset.name + " applied to " + scope
+        status = preset.name + " applied to " + scope + (prefs.matugenEnabled ? " · wallpaper colors active" : "")
+        configFile.writeAdapter()
     }
     function resetComponent(scope) {
+        stopOriginalPanels()
         const next = Object.assign({}, prefs.componentStyles)
         delete next[scope]
         prefs.componentStyles = next
         if (scope === "Bar") applySourceBar(prefs.activePreset)
         if (scope === "Window Switcher") applySwitcherSource(prefs.activePreset)
         status = scope + " now follows global appearance"
+        configFile.writeAdapter()
     }
     function componentPreview(scope) { return scope === "All" ? prefs.activePreset : styleFor(scope).name }
+    function presetSelected(name, scope) { return componentPreview(scope) === name && (scope !== "All" || !supportedScopes.some(function(k){return !!prefs.componentStyles[k] && prefs.componentStyles[k].name !== name})) }
+    function portDescription(name, scope) {
+        if (name === "TQQ Rice") {
+            if (scope === "Launcher" || scope === "Window Switcher" || scope === "Control Center") return scope === "Window Switcher" && !isNiri ? "Deyra fallback on Hyprland" : "Original QML port"
+            if (scope === "All") return "Original launcher, Niri switcher, Wi-Fi and dashboard"
+            if (scope === "Bar") return "Native bar + original Wi-Fi"
+        }
+        if (name === "DarkShadow" && (scope === "Control Center" || scope === "All")) return "Original wave slider; partial port"
+        if (name === "DankMaterialShell" && scope === "All") return "Original desktop clock; partial port"
+        return "Deyra adaptation · not original UI"
+    }
     readonly property var upstreamMedia: {
         "TQQ Rice": {
             "image": "",
@@ -832,6 +864,13 @@ ShellRoot {
     property bool stoppingOriginalLauncher: false
     property bool stoppingOriginalSwitcher: false
     property bool stoppingOriginalWifi: false
+    property bool stoppingOriginalControl: false
+    function stopOriginalPanels() {
+        if (originalLauncher.running) { stoppingOriginalLauncher = true; originalLauncher.running = false }
+        if (originalSwitcher.running) { stoppingOriginalSwitcher = true; originalSwitcher.running = false }
+        if (originalWifi.running) { stoppingOriginalWifi = true; originalWifi.running = false }
+        if (originalControl.running) { stoppingOriginalControl = true; originalControl.running = false }
+    }
     function openOriginalWifi() {
         if (originalWifi.running) { stoppingOriginalWifi = true; originalWifi.running = false; return }
         page = ""
@@ -852,17 +891,28 @@ ShellRoot {
         command: ["env","DEYRA_PALETTE_JSON="+root.originalPanelPalette("Bar"),"qs","-p",root.portPath("wifi")]
         onExited: function(code) { const stopped = root.stoppingOriginalWifi; root.stoppingOriginalWifi = false; if(!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ Wi-Fi failed ("+code+"). Check NetworkManager."; root.page = "control" } }
     }
+    Process {
+        id: originalControl
+        command: ["env","DEYRA_PALETTE_JSON="+root.originalPanelPalette("Control Center"),"DEYRA_AVATAR="+prefs.avatar,"qs","-p",root.portPath("dashboard")]
+        onExited: function(code) { const stopped = root.stoppingOriginalControl; root.stoppingOriginalControl = false; if (!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original dashboard failed ("+code+"); using native fallback."; root.page = "control" } }
+    }
     function toggle(name) {
+        hideBarTip(null)
+        if (name === "control" && originalTqq("Control Center")) {
+            if (originalControl.running) { Quickshell.execDetached(["qs","-p",portPath("dashboard"),"ipc","call","tqqControlCenter","close"]); return }
+            stopOriginalPanels(); page = ""; originalControl.running = true; return
+        }
         if (name === "launcher" && originalTqq("Launcher")) {
             if (originalLauncher.running) { stoppingOriginalLauncher = true; originalLauncher.running = false; return }
+            stopOriginalPanels()
             page = ""
             originalLauncher.running = true
             return
         }
         page = page === name ? "" : name
     }
-    function openSettings() { if (page !== "settings") page = "settings" }
-    function showSettings(section) { settingsTab = section; page = "settings" }
+    function openSettings() { stopOriginalPanels(); if (page !== "settings") page = "settings" }
+    function showSettings(section) { settingsTab = section; openSettings() }
     function showWallpapers() { editTab = "Wallpapers"; showSettings("Edit Mode") }
     function cycleWindow() {
         if (isNiri && originalTqq("Window Switcher")) {
@@ -877,6 +927,7 @@ ShellRoot {
         } else selectedWindow = (selectedWindow + 1) % windows.length
     }
     function confirmWindow() {
+        if (originalSwitcher.running) { Quickshell.execDetached(["qs","-p",portPath("switcher"),"ipc","call","tqq-switcher","confirm"]); return }
         if (windows[selectedWindow]) windows[selectedWindow].activate()
         page = ""
     }
@@ -1137,11 +1188,13 @@ ShellRoot {
         function launcher(): void { root.toggle("launcher") }
         function control(): void { root.toggle("control") }
         function settings(): void { root.openSettings() }
+        function profile(): void { root.showSettings("Profile") }
+        function regenerate(): void { root.queueMatugen() }
         function wallpapers(): void { if(root.page === "settings" && root.editTab === "Wallpapers") root.page = ""; else root.showWallpapers() }
         function notifications(): void { root.toggle("notifications") }
         function switcher(): void { root.cycleWindow() }
         function confirm(): void { root.confirmWindow() }
-        function close(): void { root.page = ""; if(originalLauncher.running) { root.stoppingOriginalLauncher = true; originalLauncher.running = false } if(originalSwitcher.running) { root.stoppingOriginalSwitcher = true; originalSwitcher.running = false } if(originalWifi.running) { root.stoppingOriginalWifi = true; originalWifi.running = false } }
+        function close(): void { root.page = ""; root.stopOriginalPanels() }
     }
 
     // Shared visual primitives. Only event-driven animations, no continuous shaders.
@@ -1365,6 +1418,8 @@ ShellRoot {
         property string glyph: "search"
         property string label: ""
         property string detail: ""
+        property string outputName: ""
+        hoverEnabled: true
         implicitWidth: iconRow.implicitWidth + (prefs.barHeight < 32 ? 12 : 20)
         implicitHeight: Math.min(32, Math.max(20,prefs.barHeight-4))
         padding: prefs.barHeight < 32 ? 4 : 10
@@ -1379,8 +1434,57 @@ ShellRoot {
             radius: Math.min(root.styleFor("Bar").radius,16)
             Behavior on color { ColorAnimation { duration: root.motion/2 } }
         }
-        ToolTip.visible: hovered && detail !== ""
-        ToolTip.text: detail
+        Timer {
+            id: tipDelay
+            interval: 450
+            onTriggered: if (iconButton.hovered) root.showBarTip(iconButton,iconButton.outputName,iconButton.detail)
+        }
+        onHoveredChanged: {
+            if (hovered && detail !== "") tipDelay.restart()
+            else { tipDelay.stop(); root.hideBarTip(iconButton) }
+        }
+        onPressed: { tipDelay.stop(); root.hideBarTip(iconButton) }
+        Component.onDestruction: root.hideBarTip(iconButton)
+    }
+    PanelWindow {
+        id: barTip
+        screen: root.tipScreen
+        visible: root.tipText !== "" && root.tipScreen !== null
+        anchors { left: true; top: !prefs.barBottom; bottom: prefs.barBottom }
+        margins {
+            left: Math.max(4,Math.min((root.tipScreen ? root.tipScreen.width : 800)-barTip.implicitWidth-4, root.tipX-barTip.implicitWidth/2))
+            top: prefs.barBottom ? 0 : prefs.barHeight+6
+            bottom: prefs.barBottom ? prefs.barHeight+6 : 0
+        }
+        implicitWidth: Math.min(300, Math.max(64,tipLabel.implicitWidth+22))
+        implicitHeight: 30
+        color: "transparent"
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        mask: Region {}
+        Rectangle {
+            anchors.fill: parent
+            radius: 9
+            color: root.uiPanel
+            border.color: root.uiLine
+            Caption {
+                id: tipLabel
+                anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
+                text: root.tipText
+                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
+        }
+    }
+    component DeyraTip: ToolTip {
+        id: styledTip
+        popupType: Popup.Item
+        delay: 450
+        timeout: 2500
+        padding: 8
+        contentItem: Caption { text: styledTip.text; color: root.foreground }
+        background: Rectangle { radius: 8; color: root.uiRaised; border.color: root.uiLine }
     }
     component AppGlyph: Item {
         id: appGlyph
@@ -1515,6 +1619,7 @@ ShellRoot {
             id: statusModule
             BarIconButton {
                 implicitHeight: module.implicitHeight
+                outputName: module.outputName
                 glyph: ({launcher:"search",volume:"audio",network:root.networkKind,notifications:"bell",settings:"settings",control:"control",wallpaper:"wallpaper",battery:"battery",disk:"disk",cpu:"cpu",memory:"memory",media:"media",brightness:"brightness"})[module.moduleKey] || "settings"
                 detail: module.moduleKey === "network" ? root.networkLabel : module.moduleKey === "media" ? root.mediaText : root.moduleTitle(module.moduleKey)
                 label: {
@@ -1965,7 +2070,7 @@ ShellRoot {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
                         RowLayout {
                             Layout.fillWidth: true
-                            Muted { text: "v0.2.6 alpha"; Layout.fillWidth: true }
+                            Muted { text: "v0.2.7 alpha"; Layout.fillWidth: true }
                             Pill { text: "×"; implicitWidth: 34; implicitHeight: 32; onClicked: root.page = "" }
                         }
                     }
@@ -2190,6 +2295,7 @@ ShellRoot {
                             }
                             Caption { text: originalCard.modelData.name; font.pixelSize: 17; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                             Muted { text: root.upstreamMedia[originalCard.modelData.name].credit; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Muted { text: root.portDescription(originalCard.modelData.name,"All"); Layout.fillWidth: true; elide: Text.ElideRight }
                             RowLayout {
                                 Layout.fillWidth: true
                                 Pill { text: root.originalTask === originalCard.modelData.name ? "Downloading…" : "Download configs"; enabled: !upstreamFetch.running; Layout.fillWidth: true; onClicked: root.fetchOriginal(originalCard.modelData) }
@@ -2197,7 +2303,7 @@ ShellRoot {
                             }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Pill { text: "Apply Deyra port"; Layout.fillWidth: true; onClicked: root.applyPreset(originalCard.modelData,"All") }
+                                Pill { text: root.presetSelected(originalCard.modelData.name,"All") ? "Active profile" : "Apply profile"; deyraSelected: root.presetSelected(originalCard.modelData.name,"All"); Layout.fillWidth: true; onClicked: root.applyPreset(originalCard.modelData,"All") }
                                 Pill { text: "Showcase"; onClicked: Qt.openUrlExternally(root.upstreamMedia[originalCard.modelData.name].gallery) }
                             }
                         }
@@ -2322,8 +2428,7 @@ ShellRoot {
                                 border.width: root.editorColor.toLowerCase() === modelData ? 2 : 1
                                 border.color: root.editorColor.toLowerCase() === modelData ? root.contrastingText(modelData) : root.uiLine
                                 MouseArea { id: swatchMouse; anchors.fill: parent; hoverEnabled: true; onClicked: root.setAppearance(root.colorScope, root.colorRole, swatch.modelData) }
-                                ToolTip.visible: swatchMouse.containsMouse
-                                ToolTip.text: modelData
+                                DeyraTip { visible: swatchMouse.containsMouse; text: swatch.modelData }
                             }
                         }
                     }
@@ -2392,7 +2497,7 @@ ShellRoot {
                         id: presetCard
                         required property var modelData
                         readonly property string scope: root.presetScope
-                        readonly property bool chosen: root.componentPreview(scope) === modelData.name
+                        readonly property bool chosen: root.presetSelected(modelData.name, scope)
                         width: presetGrid.cellWidth - 10
                         height: presetGrid.cellHeight - 10
                         radius: 14; color: root.uiPanel
@@ -2410,6 +2515,7 @@ ShellRoot {
                             }
                             Caption { text: presetCard.modelData.name; font.pixelSize: 14; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                             Muted { text: presetCard.modelData.author + " · " + root.previewLayout(presetCard.modelData.name, presetCard.scope); Layout.fillWidth: true; elide: Text.ElideRight }
+                            Muted { text: root.portDescription(presetCard.modelData.name,presetCard.scope); Layout.fillWidth: true; elide: Text.ElideRight }
                             RowLayout {
                                 Layout.fillWidth: true
                                 Pill { text: presetCard.chosen ? "Selected" : "Apply"; deyraSelected: presetCard.chosen; Layout.fillWidth: true; onClicked: root.applyPreset(presetCard.modelData,presetCard.scope) }
@@ -2595,8 +2701,7 @@ ShellRoot {
                         onClicked: root.downloadWallpaper(modelData)
                         contentItem: Image { source: modelData.thumbs.small; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 142 }
                         background: Rectangle { radius: 10; color: "#252943"; border.color: root.accent }
-                        ToolTip.visible: hovered
-                        ToolTip.text: "Download and apply · " + modelData.resolution
+                        DeyraTip { visible: parent.hovered; text: "Download and apply · " + modelData.resolution }
                     }
                 }
                 Caption { text: "Wallhaven · landscape categories · SFW only"; opacity: .7 }
@@ -2626,7 +2731,7 @@ ShellRoot {
             id: systemPage
             Section {
                 DeyraCheck { Layout.fillWidth: true; text: "Use imported original components"; checked: prefs.useOriginalPorts; onToggled: prefs.useOriginalPorts = checked }
-                Muted { text: "TQQ launcher, Niri switcher and Wi-Fi; Dux clock; DarkShadow volume wave. Turn off for Deyra fallbacks."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Muted { text: "TQQ launcher, Niri switcher, Wi-Fi and dashboard; Dux clock; DarkShadow volume wave. Turn off for Deyra fallbacks."; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 Caption { text: "Language: English (additional translations planned)" }
                 Caption { text: "Keybinds are configured in your compositor." }
                 Caption { text: "Super+D · Launcher   Super+I · Settings\nSuper+B · Wallpapers   Super+Shift+Space · Control"; wrapMode: Text.Wrap; Layout.fillWidth: true }
@@ -2645,6 +2750,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.6 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.7 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
