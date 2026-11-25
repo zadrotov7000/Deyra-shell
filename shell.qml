@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Qt.labs.folderlistmodel
+import "ports/dux" as Dux
+import "ports/darkshadow" as Shadow
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -11,6 +13,7 @@ import Quickshell.Services.Notifications
 ShellRoot {
     id: root
     property string page: ""
+    readonly property bool useDuxDesktopClock: prefs.useOriginalPorts && (prefs.desktopClockStyle === "dux" || (prefs.desktopClockStyle === "source" && prefs.activePreset === "DankMaterialShell"))
     property string settingsTab: "Themes"
     property string editTab: "Bar"
     property string wallpaperTab: "Local"
@@ -823,11 +826,46 @@ ShellRoot {
         "#a1a1aa","#cbd5e1","#d4d4d8","#e2e8f0","#f4f4f5","#ffffff","#292524","#3f3f46","#1e3a5f","#143d35"
     ]
 
-    function toggle(name) { page = page === name ? "" : name }
+    function originalTqq(scope) { return prefs.useOriginalPorts && styleFor(scope).name === "TQQ Rice" }
+    function portPath(name) { return Quickshell.shellPath("ports/tqq/" + name + "/shell.qml") }
+    function openOriginalWifi() {
+        if (originalWifi.running) { originalWifi.running = false; return }
+        page = ""
+        originalWifi.running = true
+    }
+    Process {
+        id: originalLauncher
+        command: ["qs","-p",root.portPath("launcher")]
+        onExited: function(code) { if(code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ launcher failed ("+code+"); using native fallback."; root.page = "launcher" } }
+    }
+    Process {
+        id: originalSwitcher
+        command: ["qs","-p",root.portPath("switcher")]
+        onExited: function(code) { if(code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ switcher failed ("+code+"); using native fallback."; root.page = "switcher" } }
+    }
+    Process {
+        id: originalWifi
+        command: ["qs","-p",root.portPath("wifi")]
+        onExited: function(code) { if(code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ Wi-Fi failed ("+code+"). Check NetworkManager."; root.page = "control" } }
+    }
+    function toggle(name) {
+        if (name === "launcher" && originalTqq("Launcher")) {
+            if (originalLauncher.running) { originalLauncher.running = false; return }
+            page = ""
+            originalLauncher.running = true
+            return
+        }
+        page = page === name ? "" : name
+    }
     function openSettings() { if (page !== "settings") page = "settings" }
     function showSettings(section) { settingsTab = section; page = "settings" }
     function showWallpapers() { editTab = "Wallpapers"; showSettings("Edit Mode") }
     function cycleWindow() {
+        if (isNiri && originalTqq("Window Switcher")) {
+            if (originalSwitcher.running) Quickshell.execDetached(["qs","-p",portPath("switcher"),"ipc","call","tqq-switcher","next"])
+            else { page = ""; originalSwitcher.running = true }
+            return
+        }
         if (windows.length === 0) return
         if (page !== "switcher") {
             selectedWindow = windows.length > 1 ? 1 : 0
@@ -972,6 +1010,8 @@ ShellRoot {
             property bool barBottom: false
             property bool dockEnabled: true
             property bool desktopClock: false
+            property string desktopClockStyle: "source"
+            property bool useOriginalPorts: true
             property bool reduceMotion: false
             property bool showAudio: true
             property bool showNotifications: true
@@ -1025,7 +1065,7 @@ ShellRoot {
         function notifications(): void { root.toggle("notifications") }
         function switcher(): void { root.cycleWindow() }
         function confirm(): void { root.confirmWindow() }
-        function close(): void { root.page = "" }
+        function close(): void { root.page = ""; if(originalLauncher.running) originalLauncher.running = false; if(originalSwitcher.running) originalSwitcher.running = false; if(originalWifi.running) originalWifi.running = false }
     }
 
     // Shared visual primitives. Only event-driven animations, no continuous shaders.
@@ -1304,10 +1344,24 @@ ShellRoot {
             color: "#141727"
             Image { anchors.fill: parent; source: prefs.wallpaper; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false; sourceSize.width: parent.width }
             Column {
-                visible: prefs.desktopClock
+                visible: prefs.desktopClock && !root.useDuxDesktopClock
                 anchors { left: parent.left; top: parent.top; margins: 70 }
                 Caption { text: Qt.formatTime(root.now, "hh:mm"); font.pixelSize: 68 }
                 Caption { text: Qt.formatDate(root.now, "dddd, MMMM d"); font.pixelSize: 22 }
+            }
+            Loader {
+                anchors { left: parent.left; top: parent.top; margins: 70 }
+                width: 240; height: 240
+                active: prefs.desktopClock && root.useDuxDesktopClock
+                sourceComponent: Component {
+                    Dux.DesktopClock {
+                        pluginData: ({showSeconds:false, showDate:true, clockStyle:"analog", backgroundOpacity:80})
+                        accent: root.accent
+                        surface: prefs.background
+                        foreground: root.contrastingText(prefs.background)
+                        corner: prefs.radius
+                    }
+                }
             }
         }
     }
@@ -1406,6 +1460,7 @@ ShellRoot {
                         case "settings": root.toggle("settings"); break
                         case "wallpaper": root.showWallpapers(); break
                         case "notifications": root.toggle("notifications"); break
+                        case "network": if(root.originalTqq("Bar")) root.openOriginalWifi(); else root.toggle("control"); break
                         case "media": Quickshell.execDetached(["playerctl","play-pause"]); break
                         case "disk": case "memory": case "cpu": case "battery": root.showSettings("Profile"); break
                         default: root.toggle("control")
@@ -1650,12 +1705,29 @@ ShellRoot {
                 }
                 Caption { deyraTextScope: "Control Center"; text: Qt.formatDate(root.now, "dddd, d MMMM yyyy") }
                 RowLayout { Layout.fillWidth: true; Caption { deyraTextScope: "Control Center"; text: "Volume"; Layout.fillWidth: true } Caption { deyraTextScope: "Control Center"; text: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : "Unavailable" } }
-                DeyraSlider {
-                    Layout.fillWidth: true
-                    from: 0; to: 1
-                    enabled: !!Pipewire.defaultAudioSink && !!Pipewire.defaultAudioSink.audio
-                    value: enabled ? Pipewire.defaultAudioSink.audio.volume : 0
-                    onMoved: if (enabled) Pipewire.defaultAudioSink.audio.volume = value
+                Loader {
+                    Layout.fillWidth: true; Layout.preferredHeight: 30
+                    sourceComponent: prefs.useOriginalPorts && root.styleFor("Control Center").name === "DarkShadow" ? shadowVolume : standardVolume
+                }
+                Component {
+                    id: shadowVolume
+                    Shadow.WavyLine {
+                        color: root.styleFor("Control Center").accent
+                        value: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? Pipewire.defaultAudioSink.audio.volume : 0
+                        seekable: !!Pipewire.defaultAudioSink && !!Pipewire.defaultAudioSink.audio
+                        moving: false
+                        reducedMotion: prefs.reduceMotion
+                        onMoved: function(v) { if(seekable) Pipewire.defaultAudioSink.audio.volume = v }
+                    }
+                }
+                Component {
+                    id: standardVolume
+                    DeyraSlider {
+                        from: 0; to: 1
+                        enabled: !!Pipewire.defaultAudioSink && !!Pipewire.defaultAudioSink.audio
+                        value: enabled ? Pipewire.defaultAudioSink.audio.volume : 0
+                        onMoved: if (enabled) Pipewire.defaultAudioSink.audio.volume = value
+                    }
                 }
                 GridLayout {
                     columns: controlWindow.mode === "tiles" ? 2 : 3
@@ -1863,7 +1935,7 @@ ShellRoot {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
                         RowLayout {
                             Layout.fillWidth: true
-                            Muted { text: "v0.2.4 alpha"; Layout.fillWidth: true }
+                            Muted { text: "v0.2.5 alpha"; Layout.fillWidth: true }
                             Pill { text: "×"; implicitWidth: 34; implicitHeight: 32; onClicked: root.page = "" }
                         }
                     }
@@ -2385,7 +2457,21 @@ ShellRoot {
             }
         }
         Component { id: dockPage; Section { DeyraCheck { text: "Show running applications dock"; checked: prefs.dockEnabled; onToggled: prefs.dockEnabled = checked } Item { Layout.fillHeight: true } } }
-        Component { id: widgetsPage; Section { DeyraCheck { text: "Desktop clock"; checked: prefs.desktopClock; onToggled: prefs.desktopClock = checked } Item { Layout.fillHeight: true } } }
+        Component {
+            id: widgetsPage
+            Section {
+                DeyraCheck { Layout.fillWidth: true; text: "Desktop clock"; checked: prefs.desktopClock; onToggled: prefs.desktopClock = checked }
+                Caption { text: "Clock implementation" }
+                DeyraCombo {
+                    Layout.fillWidth: true
+                    model: ["source","deyra","dux"]
+                    currentIndex: Math.max(0,model.indexOf(prefs.desktopClockStyle))
+                    onActivated: prefs.desktopClockStyle = currentText
+                }
+                Muted { text: "Dux uses the original ExampleDesktopClock QML with a Deyra theme adapter."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Item { Layout.fillHeight: true }
+            }
+        }
         Component { id: notificationsPage; Section { DeyraCheck { text: "Do not disturb"; checked: root.dnd; onToggled: root.dnd = checked } Item { Layout.fillHeight: true } } }
         Component {
             id: switcherPage
@@ -2482,6 +2568,8 @@ ShellRoot {
         Component {
             id: systemPage
             Section {
+                DeyraCheck { Layout.fillWidth: true; text: "Use imported original components"; checked: prefs.useOriginalPorts; onToggled: prefs.useOriginalPorts = checked }
+                Muted { text: "TQQ launcher, Niri switcher and Wi-Fi; Dux clock; DarkShadow volume wave. Turn off for Deyra fallbacks."; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 Caption { text: "Language: English (additional translations planned)" }
                 Caption { text: "Keybinds are configured in your compositor." }
                 Caption { text: "Super+D · Launcher   Super+I · Settings\nSuper+B · Wallpapers   Super+Shift+Space · Control"; wrapMode: Text.Wrap; Layout.fillWidth: true }
@@ -2500,6 +2588,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.4 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.5 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
