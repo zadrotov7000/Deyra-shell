@@ -1001,7 +1001,7 @@ ShellRoot {
         if (!path.startsWith("/")) { matugenStatus = "Matugen requires a local wallpaper"; return }
         requestedWallpaper = url
         matugenStatus = "Generating wallpaper colors…"
-        matugenProcess.command = ["sh","-c","command -v matugen >/dev/null 2>&1 || exit 127; exec matugen \"$@\"", "deyra-matugen", "-c",Quickshell.shellPath("matugen/config.toml"),"image",path,"-m","dark","--dry-run","--json","hex"]
+        matugenProcess.command = ["sh","-c","command -v matugen >/dev/null 2>&1 || exit 127; exec matugen \"$@\"", "deyra-matugen", "-c",Quickshell.shellPath("matugen/config.toml"),"image",path,"-m","dark","--source-color-index","0","--dry-run","--json","hex"]
         matugenProcess.running = true
     }
     // Supports both mode-first JSON and role-first Matugen output.
