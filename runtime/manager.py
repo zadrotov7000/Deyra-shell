@@ -7,6 +7,8 @@ import os
 import platform
 import re
 import shutil
+import signal
+import shlex
 import subprocess
 import sys
 import tarfile
@@ -50,9 +52,63 @@ def owned(name):
 def say(msg):
     print(msg, flush=True)
 
+class Cancelled(Exception):
+    pass
+
+cancel_marker = None
+
+def cancel_path(token):
+    if not re.fullmatch(r"[0-9a-f]{16,64}", token):
+        raise ValueError("Invalid operation identifier")
+    return BASE / ".jobs" / (token + ".cancel")
+
+def cancelled():
+    return cancel_marker is not None and cancel_marker.exists()
+
+def check_cancel():
+    if cancelled():
+        raise Cancelled()
+
 def run(argv, cwd=None, **kw):
-    say("+ " + " ".join(map(str, argv)))
-    subprocess.run(list(map(str, argv)), cwd=cwd, check=True, **kw)
+    check_cancel()
+    args = list(map(str, argv))
+    say("+ " + shlex.join(args))
+    privileged = args[0] == "pkexec"
+    if privileged:
+        say("DEYRA_PHASE:apt")
+        say("Approve the administrator prompt. To cancel authentication, dismiss that prompt. An active APT transaction must finish safely.")
+        try:
+            p = subprocess.run(args, cwd=cwd, stdin=subprocess.DEVNULL, **kw)
+        finally:
+            say("DEYRA_PHASE:normal")
+        if p.returncode:
+            check_cancel()
+            say("Administrator authentication or APT failed. To retry in a terminal: sudo " + shlex.join(args[2:]))
+            raise subprocess.CalledProcessError(p.returncode, args)
+        return
+    with subprocess.Popen(args, cwd=cwd, start_new_session=True, stdin=subprocess.DEVNULL, **kw) as p:
+        while True:
+            try:
+                code = p.wait(timeout=0.25)
+                break
+            except subprocess.TimeoutExpired:
+                if cancelled():
+                    try:
+                        os.killpg(p.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        p.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        try:
+                            os.killpg(p.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                        p.wait()
+                    raise Cancelled()
+        check_cancel()
+        if code:
+            raise subprocess.CalledProcessError(code, args)
 
 def capture(argv, cwd=None):
     return subprocess.check_output(list(map(str, argv)), cwd=cwd, text=True).strip()
@@ -131,7 +187,8 @@ def ensure_deps(name):
         run(["apt-get", "-s", "--no-remove", "install", *missing])
         if not shutil.which("pkexec"):
             raise RuntimeError("pkexec is unavailable. Install the listed dependencies with your package manager, then retry.")
-        run(["pkexec", "/usr/bin/apt-get", "-y", "--no-remove", "install", *missing])
+        run(["pkexec", "--disable-internal-agent", "/usr/bin/apt-get", "-y", "--no-remove", "install", *missing])
+        check_cancel()
         if missing_packages(name):
             raise RuntimeError("Some dependencies are still missing.")
 
@@ -145,6 +202,7 @@ def get(url, path, limit=150 * 1024 * 1024):
     with urllib.request.urlopen(req, timeout=60) as response, path.open("wb") as output:
         n = 0
         while True:
+            check_cancel()
             block = response.read(1024 * 1024)
             if not block:
                 break
@@ -241,6 +299,7 @@ def install(name):
                 if not (target / "bin/noctalia").is_file():
                     raise RuntimeError("Original Noctalia binary missing")
             data = {"directory": folder, "commit": commit, "name": name, "previous": old["directory"] if old else ""}
+            check_cancel()
             out = parent / ".current.tmp"
             out.write_text(json.dumps(data))
             os.replace(out, parent / "current.json")
@@ -294,7 +353,7 @@ def system_install(name):
     run(["apt-get", "-s", "--no-remove", "install", pkg])
     if not shutil.which("pkexec"):
         raise RuntimeError("Administrator authentication agent is required")
-    run(["pkexec", "/usr/bin/apt-get", "-y", "--no-remove", "install", pkg])
+    run(["pkexec", "--disable-internal-agent", "/usr/bin/apt-get", "-y", "--no-remove", "install", pkg])
     if not shutil.which("dms"):
         raise RuntimeError("Dux package installed but dms executable not found")
     temp = parent / ".system.tmp"
@@ -313,7 +372,7 @@ def system_remove(name):
     if removals:
         if not shutil.which("pkexec"):
             raise RuntimeError("Administrator authentication agent is required")
-        run(["pkexec", "/usr/bin/apt-get", "-y", "--no-auto-remove", "remove", pkg])
+        run(["pkexec", "--disable-internal-agent", "/usr/bin/apt-get", "-y", "--no-auto-remove", "remove", pkg])
     (owned(name) / "system.json").unlink(missing_ok=True)
     say("Dux package removed; shared packages and user settings kept.")
 
@@ -350,6 +409,7 @@ def source_download(name, update=False):
         with tempfile.TemporaryDirectory(prefix=".download-", dir=SOURCES) as td:
             checkout = Path(td) / "repo"
             clone(name, checkout)
+            check_cancel()
             checkout.rename(target)
     say("Original source checkout ready (not a runtime installation)")
 
@@ -361,14 +421,22 @@ def catalog():
             for name in REPOS}
 
 def main():
+    global cancel_marker
     action = sys.argv[1] if len(sys.argv) > 1 else ""
+    if action == "cancel" and len(sys.argv) == 3:
+        marker = cancel_path(sys.argv[2])
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+        return
     if action == "catalog":
         say(json.dumps(catalog()))
         return
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4):
         raise RuntimeError("Usage: manager.py catalog|plan|install|update|remove|rollback|source|source-update NAME")
     name = sys.argv[2]
     slug(name)
+    if len(sys.argv) == 4:
+        cancel_marker = cancel_path(sys.argv[3])
     if action == "plan":
         if name not in RECIPES and name not in SYSTEM_RECIPES:
             raise RuntimeError("No managed recipe for this project")
@@ -380,6 +448,7 @@ def main():
     BASE.mkdir(parents=True, exist_ok=True)
     with (BASE / ".lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        check_cancel()
         if action in ("install", "update"):
             install(name)
         elif action == "remove":
@@ -394,6 +463,12 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except Cancelled:
+        say("Cancelled. Shared packages already installed are retained.")
+        sys.exit(130)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, KeyError, tarfile.TarError) as e:
         say("ERROR: " + str(e))
         sys.exit(1)
+    finally:
+        if cancel_marker is not None:
+            cancel_marker.unlink(missing_ok=True)
