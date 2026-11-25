@@ -222,7 +222,7 @@ ShellRoot {
         return idx >= 0 ? layouts[idx] : "default"
     }
     function styleFor(scope) {
-        const p = prefs.componentStyles[scope]
+        const p = (prefs.componentStyles || {})[scope]
         return p || {name: prefs.activePreset, accent: prefs.accent, bg: prefs.background, opacity: prefs.opacity, radius: prefs.radius}
     }
     function applyPreset(preset, scope) {
@@ -253,6 +253,54 @@ ShellRoot {
     }
     function componentPreview(scope) { return scope === "All" ? prefs.activePreset : styleFor(scope).name }
     property string presetScope: "All"
+    property string colorScope: "All"
+    property string colorRole: "accent"
+    readonly property var editorStyle: styleFor(colorScope === "All" ? "" : colorScope)
+    readonly property string editorColor: colorRole === "accent" ? editorStyle.accent : editorStyle.bg
+    function setAppearance(scope, key, value) {
+        if (key === "accent" || key === "bg") {
+            value = String(value).trim().toLowerCase()
+            if (!/^#[0-9a-f]{6}$/.test(value)) { status = "Enter a valid #RRGGBB color"; return }
+        } else if (key === "opacity") value = Math.max(.45, Math.min(1, Number(value)))
+        else if (key === "radius") value = Math.max(0, Math.min(40, Math.round(Number(value))))
+        else return
+        if (scope === "All") {
+            if (key === "accent") prefs.accent = value
+            else if (key === "bg") prefs.background = value
+            else if (key === "opacity") prefs.opacity = value
+            else prefs.radius = value
+        } else if (supportedScopes.indexOf(scope) >= 0) {
+            const next = Object.assign({}, prefs.componentStyles || {})
+            const style = Object.assign({}, styleFor(scope))
+            style[key] = value
+            next[scope] = style
+            prefs.componentStyles = next
+        } else return
+        status = scope + " appearance updated"
+    }
+    function resetAppearance() {
+        const p = presets.find(function(item) { return item.name === editorStyle.name }) || presets[0]
+        setAppearance(colorScope, "accent", p.accent)
+        setAppearance(colorScope, "bg", p.bg)
+        setAppearance(colorScope, "opacity", p.opacity)
+        setAppearance(colorScope, "radius", p.radius)
+    }
+    function contrastingText(bg) {
+        const h = String(bg).replace("#", "")
+        if (!/^[0-9a-fA-F]{6}$/.test(h)) return foreground
+        const l = (0.2126 * parseInt(h.slice(0,2),16) + 0.7152 * parseInt(h.slice(2,4),16) + 0.0722 * parseInt(h.slice(4,6),16))/255
+        return l > .58 ? "#131722" : "#eef2ff"
+    }
+    readonly property var colorSwatches: [
+        "#ef4444","#dc2626","#991b1b","#fca5a5","#fb7185","#e11d48","#be185d","#f9a8d4","#f472b6","#f0abfc",
+        "#f97316","#ea580c","#c2410c","#fdba74","#f59e0b","#d97706","#facc15","#fde047","#fef08a","#d9c3a5",
+        "#84cc16","#65a30d","#bef264","#a3e635","#22c55e","#16a34a","#15803d","#86efac","#34d399","#10b981",
+        "#14b8a6","#0d9488","#5eead4","#8bd5ca","#06b6d4","#0891b2","#67e8f9","#22d3ee","#38bdf8","#0ea5e9",
+        "#3b82f6","#2563eb","#1d4ed8","#93c5fd","#8aadf4","#6366f1","#818cf8","#a5b4fc","#8b5cf6","#7c3aed",
+        "#a38ff7","#c4b5fd","#a855f7","#d8b4fe","#e879f9","#c084fc","#ffb4a2","#f5c2e7","#f0b8c8","#c6a0f6",
+        "#000000","#0f111e","#111827","#18181b","#1e1e2e","#24273a","#334155","#475569","#64748b","#94a3b8",
+        "#a1a1aa","#cbd5e1","#d4d4d8","#e2e8f0","#f4f4f5","#ffffff","#292524","#3f3f46","#1e3a5f","#143d35"
+    ]
 
     function toggle(name) { page = page === name ? "" : name }
     function showSettings(section) { settingsTab = section; page = "settings" }
@@ -381,7 +429,8 @@ ShellRoot {
     }
 
     component Caption: Text {
-        color: root.foreground
+        property string deyraTextScope: ""
+        color: deyraTextScope === "" ? root.foreground : root.contrastingText(root.styleFor(deyraTextScope).bg)
         font.family: "JetBrains Mono"
         font.pixelSize: 13
         textFormat: Text.PlainText
@@ -397,7 +446,7 @@ ShellRoot {
         padding: 10
         contentItem: Caption {
             text: button.text
-            color: button.deyraSelected ? button.deyraStyle.accent : root.foreground
+            color: button.deyraSelected ? button.deyraStyle.accent : root.contrastingText(button.deyraStyle.bg)
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
@@ -529,7 +578,7 @@ ShellRoot {
                         background: Rectangle { radius: 12; color: parent.hovered ? "#343854" : "transparent"; border.width: modelData.activated ? 1 : 0; border.color: root.styleFor("Dock").accent }
                         contentItem: ColumnLayout {
                             Image { source: root.appIcon(modelData); fillMode: Image.PreserveAspectFit; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 30; Layout.preferredHeight: 30 }
-                            Caption { visible: dockWindow.labeled; text: modelData.title; Layout.fillWidth: true; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 10 }
+                            Caption { deyraTextScope: "Dock"; visible: dockWindow.labeled; text: modelData.title; Layout.fillWidth: true; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 10 }
                         }
                         ToolTip.visible: hovered
                         ToolTip.text: modelData.title
@@ -562,7 +611,7 @@ ShellRoot {
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16
                 RowLayout {
-                    Caption { text: launcher.grid ? "Applications" : "Launcher"; font.pixelSize: 20; Layout.fillWidth: true }
+                    Caption { deyraTextScope: "Launcher"; text: launcher.grid ? "Applications" : "Launcher"; font.pixelSize: 20; Layout.fillWidth: true }
                     Pill { styleScope: "Launcher"; text: "×"; onClicked: root.page = "" }
                 }
                 TextField { id: query; Layout.fillWidth: true; placeholderText: "Search applications"; color: root.foreground; Keys.onEscapePressed: root.page = ""; onAccepted: launcher.launch(launcher.matches[0]) }
@@ -570,7 +619,7 @@ ShellRoot {
                     Layout.fillWidth: true; Layout.fillHeight: true
                     sourceComponent: launcher.grid ? gridApps : listApps
                 }
-                Caption { text: launcher.matches.length + " apps"; opacity: .7 }
+                Caption { deyraTextScope: "Launcher"; text: launcher.matches.length + " apps"; opacity: .7 }
             }
         }
         Component {
@@ -584,7 +633,7 @@ ShellRoot {
                     background: Rectangle { radius: root.styleFor("Launcher").radius; color: parent.hovered ? Qt.lighter(root.styleFor("Launcher").bg,1.5) : "transparent" }
                     contentItem: RowLayout {
                         Image { source: Quickshell.iconPath(modelData.icon || "application-x-executable"); Layout.preferredWidth: 28; Layout.preferredHeight: 28; fillMode: Image.PreserveAspectFit }
-                        Caption { text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
+                        Caption { deyraTextScope: "Launcher"; text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
                     }
                 }
             }
@@ -602,7 +651,7 @@ ShellRoot {
                     background: Rectangle { radius: root.styleFor("Launcher").radius; color: parent.hovered ? Qt.lighter(root.styleFor("Launcher").bg,1.6) : Qt.lighter(root.styleFor("Launcher").bg,1.2) }
                     contentItem: ColumnLayout {
                         Image { source: Quickshell.iconPath(modelData.icon || "application-x-executable"); Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 40; Layout.preferredHeight: 40; fillMode: Image.PreserveAspectFit }
-                        Caption { text: modelData.name; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; font.pixelSize: 11 }
+                        Caption { deyraTextScope: "Launcher"; text: modelData.name; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; font.pixelSize: 11 }
                     }
                 }
             }
@@ -625,12 +674,12 @@ ShellRoot {
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 20; spacing: 12
                 RowLayout {
-                    Caption { text: Qt.formatTime(root.now, "hh:mm"); font.pixelSize: 42; Layout.fillWidth: true }
+                    Caption { deyraTextScope: "Control Center"; text: Qt.formatTime(root.now, "hh:mm"); font.pixelSize: 42; Layout.fillWidth: true }
                     Pill { styleScope: "Control Center"; text: "Settings"; onClicked: root.showSettings("System") }
                     Pill { styleScope: "Control Center"; text: "×"; onClicked: root.page = "" }
                 }
-                Caption { text: Qt.formatDate(root.now, "dddd, d MMMM yyyy") }
-                Caption { text: "Volume" }
+                Caption { deyraTextScope: "Control Center"; text: Qt.formatDate(root.now, "dddd, d MMMM yyyy") }
+                Caption { deyraTextScope: "Control Center"; text: "Volume" }
                 Slider {
                     Layout.fillWidth: true
                     from: 0; to: 1
@@ -668,7 +717,7 @@ ShellRoot {
             anchors.fill: parent
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 14
-                RowLayout { Caption { text: "Notifications"; Layout.fillWidth: true; font.pixelSize: 18 } Pill { styleScope: "Notifications"; text: "×"; onClicked: root.page = "" } }
+                RowLayout { Caption { deyraTextScope: "Notifications"; text: "Notifications"; Layout.fillWidth: true; font.pixelSize: 18 } Pill { styleScope: "Notifications"; text: "×"; onClicked: root.page = "" } }
                 ListView {
                     Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                     model: notifications.trackedNotifications
@@ -677,8 +726,8 @@ ShellRoot {
                         width: ListView.view.width
                         onClicked: modelData.dismiss()
                         contentItem: Column {
-                            Caption { text: modelData.appName + " · " + modelData.summary; width: parent.width; elide: Text.ElideRight }
-                            Caption { text: modelData.body; width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight }
+                            Caption { deyraTextScope: "Notifications"; text: modelData.appName + " · " + modelData.summary; width: parent.width; elide: Text.ElideRight }
+                            Caption { deyraTextScope: "Notifications"; text: modelData.body; width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight }
                         }
                     }
                 }
@@ -697,8 +746,8 @@ ShellRoot {
             anchors.fill: parent
             Column {
                 anchors.fill: parent; anchors.margins: 12
-                Caption { width: parent.width; elide: Text.ElideRight; text: root.currentToast ? root.currentToast.summary : "" }
-                Caption { width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight; text: root.currentToast ? root.currentToast.body : "" }
+                Caption { deyraTextScope: "Notifications"; width: parent.width; elide: Text.ElideRight; text: root.currentToast ? root.currentToast.summary : "" }
+                Caption { deyraTextScope: "Notifications"; width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight; text: root.currentToast ? root.currentToast.body : "" }
             }
         }
     }
@@ -721,7 +770,7 @@ ShellRoot {
             Keys.onBacktabPressed: if(root.windows.length) root.selectedWindow = (root.selectedWindow + root.windows.length - 1) % root.windows.length
             Keys.onReturnPressed: root.confirmWindow()
             Keys.onReleased: function(event) { if(event.key === Qt.Key_Alt) root.confirmWindow() }
-            Caption { anchors.horizontalCenter: parent.horizontalCenter; y: switcher.radial ? (parent.height-height)/2 : parent.height-height-12; width: switcher.radial ? 130 : parent.width-32; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight; text: root.windows[root.selectedWindow] ? root.windows[root.selectedWindow].title : "No windows" }
+            Caption { deyraTextScope: "Window Switcher"; anchors.horizontalCenter: parent.horizontalCenter; y: switcher.radial ? (parent.height-height)/2 : parent.height-height-12; width: switcher.radial ? 130 : parent.width-32; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight; text: root.windows[root.selectedWindow] ? root.windows[root.selectedWindow].title : "No windows" }
             Repeater {
                 model: root.windows.slice(0, 12)
                 delegate: Button {
@@ -745,6 +794,11 @@ ShellRoot {
         implicitWidth: 900; implicitHeight: 570
         color: "#10121e"
         onVisibleChanged: if (!visible && root.page === "settings") root.page = ""
+        ColorDialog {
+            id: appearancePicker
+            title: "Choose a custom color"
+            onAccepted: root.setAppearance(root.colorScope, root.colorRole, selectedColor.toString())
+        }
         FileDialog {
             id: localPicker
             title: "Choose wallpaper"
@@ -764,7 +818,7 @@ ShellRoot {
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 8
                     Caption { text: "DEYRA"; color: root.accent; font.pixelSize: 24 }
-                    Caption { text: "Shell  /  0.1.2 alpha"; opacity: .7 }
+                    Caption { text: "Shell  /  0.1.3 alpha"; opacity: .7 }
                     Repeater {
                         model: ["Themes","Edit Mode","Community","Profile","System","Performance","Updates"]
                         delegate: Pill { required property string modelData; Layout.fillWidth: true; text: modelData; deyraSelected: root.settingsTab === modelData; onClicked: root.settingsTab = modelData }
@@ -785,26 +839,97 @@ ShellRoot {
         }
         Component {
             id: themesPage
-            Section {
-                Caption { text: "Current preset: " + prefs.activePreset; font.pixelSize: 17 }
-                Pill { text: "Browse all 12 presets"; onClicked: { root.editTab = "Presets"; root.settingsTab = "Edit Mode" } }
-                Flow {
-                    Layout.fillWidth: true; spacing: 12
-                    Repeater {
-                        model: ["#a38ff7","#ffb4a2","#8bd5ca","#8aadf4","#d9c3a5"]
-                        delegate: Rectangle {
-                            required property string modelData
-                            width: 76; height: 76; radius: 18; color: modelData
-                            border.width: prefs.accent === modelData ? 4 : 0; border.color: "white"
-                            MouseArea { anchors.fill: parent; onClicked: prefs.accent = modelData }
+            ScrollView {
+                id: themeScroll
+                clip: true
+                contentWidth: availableWidth
+                ColumnLayout {
+                    width: themeScroll.availableWidth
+                    spacing: 12
+                    Caption { text: "Appearance"; font.pixelSize: 20 }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Caption { text: "Preset: " + prefs.activePreset; Layout.fillWidth: true; elide: Text.ElideRight }
+                        Pill { text: "Browse 12 presets"; onClicked: { root.editTab = "Presets"; root.settingsTab = "Edit Mode" } }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Caption { text: "Customize" }
+                        ComboBox {
+                            Layout.fillWidth: true
+                            model: ["All"].concat(root.supportedScopes)
+                            currentIndex: Math.max(0, model.indexOf(root.colorScope))
+                            onActivated: root.colorScope = currentText
+                        }
+                        Pill { text: "Inherit"; visible: root.colorScope !== "All"; onClicked: root.resetComponent(root.colorScope) }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.preferredHeight: 78
+                        radius: root.editorStyle.radius
+                        color: Qt.alpha(root.editorStyle.bg, root.editorStyle.opacity)
+                        border.width: 2; border.color: root.editorStyle.accent
+                        RowLayout {
+                            anchors.fill: parent; anchors.margins: 14
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                Caption { text: root.colorScope + " preview"; font.pixelSize: 17; color: root.contrastingText(root.editorStyle.bg) }
+                                Caption { text: root.editorStyle.accent + " / " + root.editorStyle.bg; color: root.contrastingText(root.editorStyle.bg) }
+                            }
+                            Rectangle { width: 50; height: 34; radius: root.editorStyle.radius; color: root.editorStyle.accent }
                         }
                     }
+                    RowLayout {
+                        Pill { text: "Accent"; deyraSelected: root.colorRole === "accent"; onClicked: root.colorRole = "accent" }
+                        Pill { text: "Background"; deyraSelected: root.colorRole === "bg"; onClicked: root.colorRole = "bg" }
+                        Item { Layout.fillWidth: true }
+                        Pill { text: "Color picker"; onClicked: { appearancePicker.selectedColor = root.editorColor; appearancePicker.open() } }
+                    }
+                    RowLayout {
+                        Rectangle { width: 34; height: 34; radius: 8; color: root.editorColor; border.color: "#8b92aa" }
+                        TextField {
+                            id: hexInput
+                            Layout.fillWidth: true
+                            text: root.editorColor
+                            placeholderText: "#RRGGBB"
+                            maximumLength: 7
+                            validator: RegularExpressionValidator { regularExpression: /#[0-9a-fA-F]{6}/ }
+                            onAccepted: if (acceptableInput) root.setAppearance(root.colorScope, root.colorRole, text)
+                            Connections { target: root; function onEditorColorChanged() { hexInput.text = root.editorColor } }
+                        }
+                        Pill { text: "Apply HEX"; enabled: hexInput.acceptableInput; onClicked: root.setAppearance(root.colorScope, root.colorRole, hexInput.text) }
+                    }
+                    Caption { text: "80 color swatches · choose any color"; opacity: .8 }
+                    Flow {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: implicitHeight
+                        spacing: 5
+                        Repeater {
+                            model: root.colorSwatches
+                            delegate: Rectangle {
+                                id: swatch
+                                required property string modelData
+                                width: 34; height: 34; radius: 8; color: modelData
+                                border.width: root.editorColor.toLowerCase() === modelData ? 3 : 1
+                                border.color: root.editorColor.toLowerCase() === modelData ? root.contrastingText(modelData) : "#777f95"
+                                MouseArea { id: swatchMouse; anchors.fill: parent; hoverEnabled: true; onClicked: root.setAppearance(root.colorScope, root.colorRole, swatch.modelData) }
+                                ToolTip.visible: swatchMouse.containsMouse
+                                ToolTip.text: modelData
+                            }
+                        }
+                    }
+                    RowLayout {
+                        Caption { text: "Panel opacity"; Layout.fillWidth: true }
+                        Caption { text: Math.round(root.editorStyle.opacity * 100) + "%"; color: root.accent }
+                    }
+                    Slider { Layout.fillWidth: true; from: .45; to: 1; value: root.editorStyle.opacity; onMoved: root.setAppearance(root.colorScope, "opacity", value) }
+                    RowLayout {
+                        Caption { text: "Corner radius"; Layout.fillWidth: true }
+                        Caption { text: root.editorStyle.radius + " px"; color: root.accent }
+                    }
+                    Slider { Layout.fillWidth: true; from: 0; to: 40; stepSize: 1; value: root.editorStyle.radius; onMoved: root.setAppearance(root.colorScope, "radius", value) }
+                    Pill { text: "Reset appearance to preset"; onClicked: root.resetAppearance() }
+                    Caption { text: "Global changes affect components without individual overrides."; Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: .7 }
                 }
-                Caption { text: "Panel opacity" }
-                Slider { Layout.fillWidth: true; from: .45; to: 1; value: prefs.opacity; onMoved: prefs.opacity = value }
-                Caption { text: "Corner radius" }
-                Slider { Layout.fillWidth: true; from: 0; to: 28; stepSize: 1; value: prefs.radius; onMoved: prefs.radius = value }
-                Item { Layout.fillHeight: true }
             }
         }
         Component {
@@ -989,6 +1114,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.1.2 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.1.3 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
