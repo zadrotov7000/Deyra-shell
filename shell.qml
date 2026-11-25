@@ -565,7 +565,8 @@ ShellRoot {
             radius: 9
             color: nav.navSelected ? Qt.tint(root.uiRaised, Qt.alpha(root.accent,.10)) : nav.hovered ? root.uiRaised : "transparent"
             Behavior on color { ColorAnimation { duration: root.motion / 2 } }
-            Rectangle { width: 3; height: 20; radius: 2; anchors { left: parent.left; verticalCenter: parent.verticalCenter }; color: root.accent; opacity: nav.navSelected ? 1 : 0; Behavior on opacity { NumberAnimation { duration: root.motion } } }
+            Rectangle { width: 3; height: 20; radius: 2; anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                color: root.accent; opacity: nav.navSelected ? 1 : 0; Behavior on opacity { NumberAnimation { duration: root.motion } } }
         }
     }
     component DeyraInput: TextField {
@@ -865,7 +866,8 @@ ShellRoot {
                         background: Rectangle {
                             radius: 12; color: parent.hovered ? root.tint(root.styleFor("Dock").bg,.14) : "transparent"
                             Behavior on color { ColorAnimation { duration: root.motion/2 } }
-                            Rectangle { anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 1 }; width: modelData.activated ? 16 : 4; height: 3; radius: 2; color: modelData.activated ? root.styleFor("Dock").accent : root.uiMuted; Behavior on width { NumberAnimation { duration: root.motion } } }
+                            Rectangle { anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 1 }
+                                width: modelData.activated ? 16 : 4; height: 3; radius: 2; color: modelData.activated ? root.styleFor("Dock").accent : root.uiMuted; Behavior on width { NumberAnimation { duration: root.motion } } }
                         }
                         contentItem: ColumnLayout {
                             AppGlyph { imageSource: root.appIcon(modelData); fallbackText: modelData.title || modelData.appId || "?"; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 30; Layout.preferredHeight: 30; scale: dockEntry.hovered && !prefs.reduceMotion ? 1.13 : 1; Behavior on scale { NumberAnimation { duration: root.motion/2; easing.type: Easing.OutCubic } } }
