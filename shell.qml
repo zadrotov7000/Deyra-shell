@@ -141,7 +141,7 @@ ShellRoot {
             "bottom": false,
             "dock": true,
             "clock": true,
-            "description": "Rounded rose palette"
+            "description": "Rounded rose deyraStyle"
         },
         {
             "name": "DotFriedRice",
@@ -388,35 +388,35 @@ ShellRoot {
     }
     component Pill: Button {
         id: button
-        property bool highlighted: false
+        property bool deyraSelected: false
         property string styleScope: ""
-        property bool flat: false
-        readonly property var palette: root.styleFor(styleScope)
+        property bool deyraFlat: false
+        readonly property var deyraStyle: root.styleFor(styleScope)
         implicitHeight: 34
         implicitWidth: Math.max(42, contentItem.implicitWidth + 24)
         padding: 10
         contentItem: Caption {
             text: button.text
-            color: button.highlighted ? button.palette.accent : root.foreground
+            color: button.deyraSelected ? button.deyraStyle.accent : root.foreground
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
         }
         background: Rectangle {
-            radius: button.palette.radius
-            color: button.hovered || button.highlighted ? Qt.lighter(button.palette.bg, 1.45) : button.flat ? "transparent" : Qt.alpha(button.palette.bg, button.palette.opacity)
-            border.color: button.palette.accent
-            border.width: button.flat ? 0 : 1
+            radius: button.deyraStyle.radius
+            color: button.hovered || button.deyraSelected ? Qt.lighter(button.deyraStyle.bg, 1.45) : button.deyraFlat ? "transparent" : Qt.alpha(button.deyraStyle.bg, button.deyraStyle.opacity)
+            border.color: button.deyraStyle.accent
+            border.width: button.deyraFlat ? 0 : 1
         }
     }
     component Section: ColumnLayout { spacing: 12 }
-    component BarPill: Pill { styleScope: "Bar"; flat: root.layoutFor("Bar") !== "islands" }
+    component BarPill: Pill { styleScope: "Bar"; deyraFlat: root.layoutFor("Bar") !== "islands" }
     component Card: Rectangle {
         property string styleScope: ""
-        readonly property var palette: root.styleFor(styleScope)
-        color: Qt.alpha(palette.bg, palette.opacity)
-        radius: palette.radius
-        border.color: palette.accent
+        readonly property var deyraStyle: root.styleFor(styleScope)
+        color: Qt.alpha(deyraStyle.bg, deyraStyle.opacity)
+        radius: deyraStyle.radius
+        border.color: deyraStyle.accent
         border.width: 1
     }
 
@@ -471,7 +471,7 @@ ShellRoot {
                     id: leftBar
                     anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
                     spacing: 5
-                    BarPill { text: "⌕"; highlighted: true; onClicked: root.toggle("launcher") }
+                    BarPill { text: "⌕"; deyraSelected: true; onClicked: root.toggle("launcher") }
                     BarPill { visible: barArea.mode !== "minimal" && barArea.mode !== "dynamic"; text: "Deyra"; onClicked: root.toggle("settings") }
                     Caption { visible: barArea.mode === "minimal"; anchors.verticalCenter: parent.verticalCenter; width: Math.min(170, barArea.width/5); elide: Text.ElideRight; text: root.windows.length ? root.windows[0].title : "Desktop" }
                 }
@@ -767,7 +767,7 @@ ShellRoot {
                     Caption { text: "Shell  /  0.1.2 alpha"; opacity: .7 }
                     Repeater {
                         model: ["Themes","Edit Mode","Community","Profile","System","Performance","Updates"]
-                        delegate: Pill { required property string modelData; Layout.fillWidth: true; text: modelData; highlighted: root.settingsTab === modelData; onClicked: root.settingsTab = modelData }
+                        delegate: Pill { required property string modelData; Layout.fillWidth: true; text: modelData; deyraSelected: root.settingsTab === modelData; onClicked: root.settingsTab = modelData }
                     }
                     Item { Layout.fillHeight: true }
                     Pill { text: "Close"; Layout.fillWidth: true; onClicked: root.page = "" }
@@ -814,7 +814,7 @@ ShellRoot {
                     Layout.fillWidth: true; spacing: 6
                     Repeater {
                         model: ["Presets","Bar","Dock","Desktop Widgets","Launcher","Control Center","Lock Screen","Notifications","Window Switcher","Wallpapers"]
-                        delegate: Pill { required property string modelData; text: modelData; highlighted: root.editTab === modelData; onClicked: root.editTab = modelData }
+                        delegate: Pill { required property string modelData; text: modelData; deyraSelected: root.editTab === modelData; onClicked: root.editTab = modelData }
                     }
                 }
                 Loader {
@@ -884,8 +884,8 @@ ShellRoot {
             Section {
                 Caption { text: "Bar position" }
                 RowLayout {
-                    Pill { text: "Top"; highlighted: !prefs.barBottom; onClicked: prefs.barBottom = false }
-                    Pill { text: "Bottom"; highlighted: prefs.barBottom; onClicked: prefs.barBottom = true }
+                    Pill { text: "Top"; deyraSelected: !prefs.barBottom; onClicked: prefs.barBottom = false }
+                    Pill { text: "Bottom"; deyraSelected: prefs.barBottom; onClicked: prefs.barBottom = true }
                 }
                 Caption { text: "Height" }
                 Slider { Layout.fillWidth: true; from: 38; to: 60; stepSize: 1; value: prefs.barHeight; onMoved: prefs.barHeight = value }
@@ -904,7 +904,7 @@ ShellRoot {
                 RowLayout {
                     Repeater {
                         model: ["Local","Online","Animated","Favorites","Collections","Daily"]
-                        delegate: Pill { required property string modelData; text: modelData; highlighted: root.wallpaperTab === modelData; onClicked: root.wallpaperTab = modelData }
+                        delegate: Pill { required property string modelData; text: modelData; deyraSelected: root.wallpaperTab === modelData; onClicked: root.wallpaperTab = modelData }
                     }
                 }
                 Loader {
