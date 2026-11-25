@@ -25,6 +25,22 @@ ShellRoot {
     property string packagePlanName: ""
     property string packageLog: ""
     property bool packageBusy: false
+    property bool packageCancelling: false
+    property bool packageApt: false
+    property string packageToken: ""
+    function cancelPackage() {
+        if (!packageBusy || packageCancelling || !packageToken || packageCancel.running) return
+        packageCancelling = true
+        appendPackageLog(packageApt ? "Stop requested. Dismiss the authentication prompt, or wait for the active APT transaction to finish." : "Stop requested…")
+        packageCancel.command = ["python3",Quickshell.shellPath("runtime/manager.py"),"cancel",packageToken]
+        packageCancel.running = true
+    }
+    Process {
+        id: packageCancel
+        onExited: function(code) {
+            if (code !== 0 && root.packageBusy) { root.packageCancelling = false; root.appendPackageLog("Could not request cancellation; try again.") }
+        }
+    }
     function packageInfo(name) { return packageCatalog[name] || ({managed:false,source:false,recipe:false,commit:""}) }
     function refreshPackages() { if(!packageScan.running) packageScan.running = true }
     function preparePackage(name, action) {
@@ -39,8 +55,11 @@ ShellRoot {
         packageName = name
         packageAction = action
         packageLog = ""
+        packageCancelling = false
+        packageApt = false
+        packageToken = Date.now().toString(16) + Math.floor(Math.random()*4294967296).toString(16).padStart(8,"0")
         packageBusy = true
-        packageWorker.command = ["python3",Quickshell.shellPath("runtime/manager.py"),action,name]
+        packageWorker.command = ["python3",Quickshell.shellPath("runtime/manager.py"),action,name,packageToken]
         packageWorker.running = true
     }
     function appendPackageLog(line) { packageLog = (packageLog + line + "\n").slice(-18000) }
@@ -55,11 +74,18 @@ ShellRoot {
     }
     Process {
         id: packageWorker
-        stdout: SplitParser { onRead: function(line) { root.appendPackageLog(line) } }
+        stdout: SplitParser { onRead: function(line) {
+            if (line === "DEYRA_PHASE:apt") root.packageApt = true
+            else if (line === "DEYRA_PHASE:normal") root.packageApt = false
+            else root.appendPackageLog(line)
+        } }
         stderr: SplitParser { onRead: function(line) { root.appendPackageLog(line) } }
         onExited: function(code) {
             root.packageBusy = false
-            root.status = code === 0 ? root.packageName + " · " + root.packageAction + " completed" : root.packageName + " · operation failed; see log"
+            root.packageCancelling = false
+            root.packageApt = false
+            root.packageToken = ""
+            root.status = code === 130 ? root.packageName + " · cancelled" : code === 0 ? root.packageName + " · " + root.packageAction + " completed" : root.packageName + " · operation failed; see log"
             root.refreshPackages()
         }
     }
@@ -2470,6 +2496,7 @@ ShellRoot {
                             Layout.fillWidth: true
                             Caption { text: root.packageBusy ? root.packageAction + " · " + root.packageName + "…" : "Last operation · " + root.packageName; Layout.fillWidth: true; elide: Text.ElideRight }
                             BusyIndicator { running: root.packageBusy; visible: running; Layout.preferredWidth: 24; Layout.preferredHeight: 24 }
+                            Pill { text: root.packageCancelling ? "Stopping…" : root.packageApt ? "Stop after APT" : "Stop"; visible: root.packageBusy; enabled: !root.packageCancelling; onClicked: root.cancelPackage() }
                             Pill { text: "Clear"; visible: !root.packageBusy; onClicked: root.packageLog = "" }
                         }
                         ScrollView {
