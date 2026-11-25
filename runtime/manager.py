@@ -37,6 +37,8 @@ RECIPES = {
     "Serpantinum": "git curl jq python3 file pciutils util-linux playerctl wireplumber wl-clipboard grim imagemagick ffmpeg bluez network-manager ddcutil tesseract-ocr zbar-tools qml6-module-qtquick-effects qml6-module-qtmultimedia qml6-module-qtquick-controls qml6-module-qtquick-layouts",
     "Noctalia": "git meson ninja-build pkg-config g++ libwayland-dev wayland-protocols libegl-dev libgles-dev libfreetype-dev libfontconfig-dev libcairo2-dev libpango1.0-dev libharfbuzz-dev libxkbcommon-dev libglib2.0-dev libsecret-1-dev libsodium-dev libsdbus-c++-dev libpipewire-0.3-dev libwireplumber-0.5-dev libpam0g-dev libpolkit-agent-1-dev libpolkit-gobject-1-dev libcurl4-openssl-dev libwebp-dev libjxl-dev libsndfile1-dev librsvg2-dev libqalculate-dev libxml2-dev libmd4c-dev libtomlplusplus-dev libical-dev nlohmann-json3-dev libstb-dev libjemalloc-dev",
 }
+SYSTEM_RECIPES = {"DankMaterialShell": "dms"}
+
 def slug(name):
     if name not in REPOS:
         raise ValueError("Unknown project")
@@ -74,6 +76,8 @@ def release_dir(name):
     return owned(name) / data["directory"] if data else None
 
 def runtime(name):
+    if name in SYSTEM_RECIPES and system_record(name) and shutil.which("dms"):
+        return (["dms", "run"], dict(os.environ))
     root = release_dir(name)
     if root is None:
         return None
@@ -183,6 +187,8 @@ def backend(repo, kind, dest, tmp):
     tarpath.unlink()
 
 def install(name):
+    if name in SYSTEM_RECIPES:
+        return system_install(name)
     if name not in RECIPES:
         raise RuntimeError("No reviewed Debian installation recipe. Use the official guide; source download is not installation.")
     ensure_deps(name)
@@ -262,7 +268,58 @@ def rollback(name):
     os.replace(tmp, parent / "current.json")
     say("Previous managed version selected. Apply it to test.")
 
+def system_record(name):
+    try:
+        data = json.loads((owned(name) / "system.json").read_text())
+        if name in SYSTEM_RECIPES and data.get("package") == SYSTEM_RECIPES[name]:
+            return data
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    return None
+
+def system_install(name):
+    if distro() not in ("debian", "ubuntu"):
+        raise RuntimeError("APT recipe requires Debian or Ubuntu")
+    pkg = SYSTEM_RECIPES[name]
+    candidate = capture(["apt-cache", "show", pkg])
+    if not re.search(r"(?im)^Homepage:\s*https?://(?:github\.com/(?:duxlabs-dev/dux-shell|AvengeMedia/DankMaterialShell)|(?:www\.)?duxlabs\.dev|(?:www\.)?danklinux\.com)", candidate):
+        raise RuntimeError("Official Dux package not found in configured APT repositories. See upstream Debian installation guide; Deyra does not add repository keys automatically.")
+    existing = subprocess.run(["dpkg-query", "-W", "-f=${Status}", pkg], capture_output=True, text=True).stdout.strip() == "install ok installed"
+    if existing and not system_record(name):
+        raise RuntimeError("Original Dux already installed outside Deyra. Use Apply; update and uninstall via its original package manager.")
+    parent = owned(name)
+    if parent.is_symlink():
+        raise RuntimeError("Refusing symlinked installation directory")
+    parent.mkdir(parents=True, exist_ok=True)
+    run(["apt-get", "-s", "--no-remove", "install", pkg])
+    if not shutil.which("pkexec"):
+        raise RuntimeError("Administrator authentication agent is required")
+    run(["pkexec", "/usr/bin/apt-get", "-y", "--no-remove", "install", pkg])
+    if not shutil.which("dms"):
+        raise RuntimeError("Dux package installed but dms executable not found")
+    temp = parent / ".system.tmp"
+    temp.write_text(json.dumps({"package": pkg}))
+    os.replace(temp, parent / "system.json")
+    say("Original Dux APT package installed. Apply to launch its own runtime.")
+
+def system_remove(name):
+    if not system_record(name):
+        raise RuntimeError("Dux was not installed by Deyra")
+    pkg = SYSTEM_RECIPES[name]
+    plan = capture(["apt-get", "-s", "remove", pkg])
+    removals = re.findall(r"(?m)^Remv (\S+)", plan)
+    if any(item.split(":")[0] != pkg for item in removals):
+        raise RuntimeError("APT would remove other packages; refusing.")
+    if removals:
+        if not shutil.which("pkexec"):
+            raise RuntimeError("Administrator authentication agent is required")
+        run(["pkexec", "/usr/bin/apt-get", "-y", "--no-auto-remove", "remove", pkg])
+    (owned(name) / "system.json").unlink(missing_ok=True)
+    say("Dux package removed; shared packages and user settings kept.")
+
 def remove(name):
+    if name in SYSTEM_RECIPES:
+        return system_remove(name)
     parent = owned(name)
     # Only remove manager-owned, versioned directories; keep user configs and APT dependencies.
     if parent.is_symlink():
@@ -297,7 +354,7 @@ def source_download(name, update=False):
     say("Original source checkout ready (not a runtime installation)")
 
 def catalog():
-    return {name: {"recipe": name in RECIPES, "managed": metadata(name) is not None, "ready": runtime(name) is not None,
+    return {name: {"recipe": name in RECIPES or name in SYSTEM_RECIPES, "managed": metadata(name) is not None or system_record(name) is not None, "ready": runtime(name) is not None,
                    "rollback": bool((metadata(name) or {}).get("previous")),
                    "source": (SOURCES / slug(name) / ".git").is_dir(),
                    "commit": (metadata(name) or {}).get("commit", "")[:12]}
@@ -313,7 +370,7 @@ def main():
     name = sys.argv[2]
     slug(name)
     if action == "plan":
-        if name not in RECIPES:
+        if name not in RECIPES and name not in SYSTEM_RECIPES:
             raise RuntimeError("No managed recipe for this project")
         say("Install original " + name + ". APT may install missing dependencies (no package removal). "
             "The runtime is installed in Deyra's managed directory. "
