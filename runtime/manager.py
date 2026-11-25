@@ -117,6 +117,9 @@ def ensure_deps(name):
         raise RuntimeError("Managed build is currently restricted to x86_64.")
     if name == "Serpantinum" and not shutil.which("quickshell"):
         raise RuntimeError("Original Serpantinum requires the quickshell executable; install a compatible build first.")
+    minimum = (5 if name == "Noctalia" else 1) * 1024**3
+    if shutil.disk_usage(BASE).free < minimum:
+        raise RuntimeError("Not enough free disk space for a safe staged installation; no dependencies were changed.")
     missing = missing_packages(name)
     if missing:
         say("Missing packages: " + ", ".join(missing))
@@ -184,6 +187,8 @@ def install(name):
         raise RuntimeError("No reviewed Debian installation recipe. Use the official guide; source download is not installation.")
     ensure_deps(name)
     parent = owned(name)
+    if parent.is_symlink():
+        raise RuntimeError("Refusing symlinked installation directory")
     parent.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(parent).free < (5 if name == "Noctalia" else 1) * 1024**3:
         raise RuntimeError("Not enough disk space for a safe staged installation")
@@ -193,7 +198,7 @@ def install(name):
         say("Fetching actual upstream source")
         commit = clone(name, repo)
         old = metadata(name)
-        if old and old.get("commit") == commit and runtime(name):
+        if old and commit.startswith(old.get("commit", "") or "invalid") and runtime(name):
             say("Already at the downloaded upstream commit " + commit[:12])
             return
         folder = "release-" + commit[:12] + "-" + str(time.time_ns())
@@ -238,6 +243,25 @@ def install(name):
             shutil.rmtree(target, ignore_errors=True)
             raise
 
+def rollback(name):
+    parent = owned(name)
+    if parent.is_symlink():
+        raise RuntimeError("Refusing symlinked installation directory")
+    data = metadata(name)
+    old = (data or {}).get("previous", "")
+    if not re.fullmatch(r"release-[0-9a-f]{12}-[0-9]+", old):
+        raise RuntimeError("No previous managed version")
+    target = parent / old
+    if not target.is_dir() or target.is_symlink():
+        raise RuntimeError("Previous version is missing")
+    before = data["directory"]
+    data["directory"], data["previous"] = old, before
+    data["commit"] = old.split("-")[1]
+    tmp = parent / ".current.tmp"
+    tmp.write_text(json.dumps(data))
+    os.replace(tmp, parent / "current.json")
+    say("Previous managed version selected. Apply it to test.")
+
 def remove(name):
     parent = owned(name)
     # Only remove manager-owned, versioned directories; keep user configs and APT dependencies.
@@ -273,7 +297,8 @@ def source_download(name, update=False):
     say("Original source checkout ready (not a runtime installation)")
 
 def catalog():
-    return {name: {"recipe": name in RECIPES, "managed": runtime(name) is not None,
+    return {name: {"recipe": name in RECIPES, "managed": metadata(name) is not None, "ready": runtime(name) is not None,
+                   "rollback": bool((metadata(name) or {}).get("previous")),
                    "source": (SOURCES / slug(name) / ".git").is_dir(),
                    "commit": (metadata(name) or {}).get("commit", "")[:12]}
             for name in REPOS}
@@ -284,7 +309,7 @@ def main():
         say(json.dumps(catalog()))
         return
     if len(sys.argv) != 3:
-        raise RuntimeError("Usage: manager.py catalog|plan|install|update|remove|source|source-update NAME")
+        raise RuntimeError("Usage: manager.py catalog|plan|install|update|remove|rollback|source|source-update NAME")
     name = sys.argv[2]
     slug(name)
     if action == "plan":
@@ -302,6 +327,8 @@ def main():
             install(name)
         elif action == "remove":
             remove(name)
+        elif action == "rollback":
+            rollback(name)
         elif action in ("source", "source-update"):
             source_download(name, action == "source-update")
         else:
