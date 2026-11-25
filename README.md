@@ -2,11 +2,11 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.2.3 alpha — original project library and upstream screenshots. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.2.4 alpha — single-window settings and embedded editors. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
-Requirements: a running Wayland compositor with layer-shell and foreign-toplevel-management support, Quickshell 0.2.1 or newer built with Wayland, PipeWire and notifications modules, Qt Quick Controls/Layouts/Dialogs, curl and optionally brightnessctl. On Debian, check your installed Quickshell version and QML modules. Uses the system sans-serif font; no dedicated icon font required.
+Requirements: a running Wayland compositor with layer-shell and foreign-toplevel-management support, Quickshell 0.2.1 or newer built with Wayland, PipeWire and notifications modules, Qt Quick Controls/Layouts and Qt.labs.folderlistmodel, curl and optionally brightnessctl. On Debian, check your installed Quickshell version and QML modules. Uses the system sans-serif font; no dedicated icon font required.
 
 ```sh
 git clone https://github.com/zadrotov7000/Deyra-shell.git
@@ -18,6 +18,10 @@ qs -c deyra
 Run in a terminal for the first smoke test; Ctrl+C stops the shell. The installer copies only the shell configuration to the user's XDG configuration directory and backs up any previous Deyra shell file. It does not install/remove packages or modify Niri, Hyprland, TQQ, or your existing desktop configuration. It creates the settings directory before startup.
 
 Before testing, temporarily stop other panels, wallpaper renderers and notification daemons using their own documented controls if you want to avoid conflicts. In particular, only one notification daemon may own the desktop notification D-Bus name. Do not remove the existing desktop or lock screen.
+
+## Version 0.2.4 — one settings window
+
+All settings tabs remain inside a single centered panel. Color editing and wallpaper/avatar selection open embedded editors, not native dialog windows. Escape dismisses the embedded editor first and then closes Settings. The settings IPC action opens the existing window instead of toggling it closed. Explicit GitHub/showcase and file-manager links may still open their external applications. The embedded image browser requires the Qt folder list model. Runtime testing remains pending.
 
 ## Version 0.2.3 — original project library
 
@@ -74,7 +78,7 @@ In **Edit Mode → Window Switcher**, compact mode, alignment and transition dur
 
 Open Settings → Themes. Choose All or an individual component (Bar, Dock, Launcher, Control Center, Notifications or Window Switcher). Select Accent or Background, expand All 80 colors if desired, then choose from the swatches, enter a six-digit HEX value, or open the Qt color picker. The preview updates immediately. Opacity and corner radius are also configurable per scope. Inherit removes an individual component override; Reset appearance to preset restores its original colors and geometry without changing the chosen layout. Global edits do not overwrite existing component overrides.
 
-QtQuick.Dialogs is required for color and file pickers (Debian: `qml6-module-qtquick-dialogs`). Appearance settings persist in settings.json. The editor has not yet been runtime-tested on Niri or Hyprland.
+The embedded local image browser uses Qt.labs.folderlistmodel (Debian: `qml6-module-qt-labs-folderlistmodel`). Color editing is built into Deyra Settings and no longer uses QtQuick.Dialogs. Appearance settings persist in settings.json. The editor has not yet been runtime-tested on Niri or Hyprland.
 
 ## Native component layout variants
 
