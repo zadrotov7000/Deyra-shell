@@ -2,7 +2,7 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.2.0 alpha — interface redesign, native bar modules and motion system. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.2.1 alpha — source-derived module layouts and live bar editor. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
@@ -18,6 +18,29 @@ qs -c deyra
 Run in a terminal for the first smoke test; Ctrl+C stops the shell. The installer copies only the shell configuration to the user's XDG configuration directory and backs up any previous Deyra shell file. It does not install/remove packages or modify Niri, Hyprland, TQQ, or your existing desktop configuration. It creates the settings directory before startup.
 
 Before testing, temporarily stop other panels, wallpaper renderers and notification daemons using their own documented controls if you want to avoid conflicts. In particular, only one notification daemon may own the desktop notification D-Bus name. Do not remove the existing desktop or lock screen.
+
+## Version 0.2.1 — source-derived configurations
+
+Open **Settings → Edit Mode → Bar** to select a source layout, adjust size and spacing, choose a workspace indicator style, or add, reorder and remove modules in any of the three bar sections. These are native Deyra implementations based on inspected upstream settings, not bundled copies of upstream shell code. Source links and repository-level license information are displayed in the editor; Serpantinum's license was not verified.
+
+| Source | Inspected configuration | Deyra adaptation |
+| --- | --- | --- |
+| TQQ Rice | `config/waybar/config` | Island module order, storage status |
+| Noctalia | `example.toml` | Three sections, insets, module spacing |
+| DankMaterialShell / Dux | `quickshell/Common/BarWidgetCatalog.qml`, `quickshell/Common/settings/BarWidgetDefaults.js` | Widget sections and pill indicators |
+| Caelestia | `plugin/src/Caelestia/Config/barconfig.hpp` | Active-window and status placement; horizontal adaptation |
+| Illogical Impulse | `dots/.config/quickshell/ii/modules/ii/bar/BarContent.qml` | Center resources, media and workspaces |
+| HyDE | `Configs/.config/waybar/config.jsonc` | Grouped sections and system indicators |
+| ML4W | `dotfiles/.config/waybar/themes/ml4w/config` | Center workspaces, right-side clock |
+| iNiR | `defaults/config.json` | Switcher alignment, duration and animation options |
+| DotFriedRice | `.config/waybar/config.jsonc` | Compact bar and supported module order |
+| Ambxst | `config/defaults/bar.js` | Optional frame and 12/24-hour clock |
+| DarkShadow | `quickshell/rice-desktop/Bar.qml` | Clock island and supported section order |
+| Serpantinum | `src/quickshell/bar/BarModuleRegistry.qml` | Selectable workspace faces (native approximations) |
+
+The module catalog includes application launcher, workspaces, active title, clock, now playing, volume, network, notifications, battery, disk usage, CPU load, memory, brightness, wallpapers, control center and settings. Media and brightness need optional `playerctl` and `brightnessctl`; unavailable battery/media/brightness modules are hidden. Imported arrangements omit unsupported upstream modules such as system tray, clipboard, Bluetooth, full taskbar and power menu. No upstream installers or arbitrary upstream commands are executed. Existing shell configs are not modified.
+
+In **Edit Mode → Window Switcher**, compact mode, alignment and transition duration can be configured independently. Source selection can change these options. These ports require graphical verification on Niri and Hyprland; exact visual parity is not claimed.
 
 ## Version 0.2.0 — visual overhaul
 
