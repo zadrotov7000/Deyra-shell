@@ -441,6 +441,7 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: PanelWindow {
+            id: barWindow
             required property var modelData
             readonly property string mode: root.layoutFor("Bar")
             screen: modelData
@@ -450,7 +451,7 @@ ShellRoot {
             Item {
                 id: barArea
                 anchors.fill: parent
-                readonly property string mode: parent.mode
+                readonly property string mode: barWindow.mode
                 Card {
                     styleScope: "Bar"; visible: barArea.mode === "full"
                     anchors.fill: parent; anchors.margins: 2
@@ -482,10 +483,11 @@ ShellRoot {
                     height: Math.min(38, barArea.height)
                     radius: barArea.mode === "notch" ? 10 : 22
                     Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                    HoverHandler { id: islandHover }
+                    
                 }
                 BarPill {
                     id: central
+                    HoverHandler { id: islandHover }
                     anchors.centerIn: parent
                     text: barArea.mode === "dynamic" && islandHover.hovered ? Qt.formatDateTime(root.now, "hh:mm · d MMM") + (root.dnd ? " · DND" : "") : Qt.formatDateTime(root.now, "ddd  hh:mm")
                     onClicked: root.toggle("control")
@@ -560,7 +562,7 @@ ShellRoot {
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16
                 RowLayout {
-                    Caption { text: grid ? "Applications" : "Launcher"; font.pixelSize: 20; Layout.fillWidth: true }
+                    Caption { text: launcher.grid ? "Applications" : "Launcher"; font.pixelSize: 20; Layout.fillWidth: true }
                     Pill { styleScope: "Launcher"; text: "×"; onClicked: root.page = "" }
                 }
                 TextField { id: query; Layout.fillWidth: true; placeholderText: "Search applications"; color: root.foreground; Keys.onEscapePressed: root.page = ""; onAccepted: launcher.launch(launcher.matches[0]) }
@@ -953,7 +955,7 @@ ShellRoot {
         Component {
             id: communityPage
             Section {
-                Caption { text: "12 Deyra preset adaptations available"; font.pixelSize: 17 }
+                Caption { text: "12 Deyra layout and style profiles available"; font.pixelSize: 17 }
                 Pill { text: "Open preset library"; onClicked: { root.editTab = "Presets"; root.settingsTab = "Edit Mode" } }
                 Caption { text: "Third-party widgets and upstream code ports require separate license review."; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 Item { Layout.fillHeight: true }
