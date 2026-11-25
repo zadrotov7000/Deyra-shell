@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
+import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -824,6 +824,7 @@ ShellRoot {
     ]
 
     function toggle(name) { page = page === name ? "" : name }
+    function openSettings() { if (page !== "settings") page = "settings" }
     function showSettings(section) { settingsTab = section; page = "settings" }
     function showWallpapers() { editTab = "Wallpapers"; showSettings("Edit Mode") }
     function cycleWindow() {
@@ -1019,7 +1020,7 @@ ShellRoot {
         target: "deyra"
         function launcher(): void { root.toggle("launcher") }
         function control(): void { root.toggle("control") }
-        function settings(): void { root.toggle("settings") }
+        function settings(): void { root.openSettings() }
         function wallpapers(): void { if(root.page === "settings" && root.editTab === "Wallpapers") root.page = ""; else root.showWallpapers() }
         function notifications(): void { root.toggle("notifications") }
         function switcher(): void { root.cycleWindow() }
@@ -1157,6 +1158,7 @@ ShellRoot {
             background: Rectangle { color: parent.highlighted || parent.hovered ? root.uiRaised : "transparent"; radius: 7 }
         }
         popup: Popup {
+            popupType: Popup.Item
             y: chooser.height + 4; width: chooser.width
             implicitHeight: Math.min(contentItem.implicitHeight+12, 300)
             padding: 6
@@ -1787,25 +1789,35 @@ ShellRoot {
         implicitHeight: Math.min(660, screen ? screen.height-80 : 660)
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: expanded ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: expanded ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         color: "transparent"
-        Shortcut { sequence: "Escape"; enabled: settings.expanded; onActivated: root.page = "" }
-        ColorDialog {
-            id: appearancePicker
-            title: "Choose a custom color"
-            onAccepted: root.setAppearance(root.colorScope, root.colorRole, selectedColor.toString())
+        property string editorMode: ""
+        property string chosenImage: ""
+        property string browseFolder: "file://" + Quickshell.env("HOME")
+        property string draftHex: "#000000"
+        function openColor() {
+            draftHex = root.editorColor
+            editorMode = "color"
         }
-        FileDialog {
-            id: localPicker
-            title: "Choose wallpaper"
-            nameFilters: ["Images (*.png *.jpg *.jpeg *.webp)"]
-            onAccepted: prefs.wallpaper = selectedFile.toString()
+        function openImage(kind) {
+            chosenImage = ""
+            browseFolder = "file://" + Quickshell.env("HOME")
+            editorMode = kind
         }
-        FileDialog {
-            id: avatarPicker
-            title: "Choose avatar"
-            nameFilters: ["Images (*.png *.jpg *.jpeg *.webp)"]
-            onAccepted: prefs.avatar = selectedFile.toString()
+        function closeEditor() { editorMode = ""; chosenImage = "" }
+        function setChannel(index, value) {
+            const raw = draftHex.slice(1)
+            const channel = Math.round(value).toString(16).padStart(2,"0")
+            draftHex = "#" + raw.slice(0,index*2) + channel + raw.slice(index*2+2)
+        }
+        onExpandedChanged: if (!expanded) closeEditor()
+        Shortcut {
+            sequence: "Escape"
+            enabled: settings.expanded
+            onActivated: {
+                if (settings.editorMode !== "") settings.closeEditor()
+                else root.page = ""
+            }
         }
         Rectangle {
             anchors.fill: parent
@@ -1851,7 +1863,7 @@ ShellRoot {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
                         RowLayout {
                             Layout.fillWidth: true
-                            Muted { text: "v0.2.3 alpha"; Layout.fillWidth: true }
+                            Muted { text: "v0.2.4 alpha"; Layout.fillWidth: true }
                             Pill { text: "×"; implicitWidth: 34; implicitHeight: 32; onClicked: root.page = "" }
                         }
                     }
@@ -1878,6 +1890,156 @@ ShellRoot {
                         NumberAnimation { id: tabMotion; target: settingsBody; property: "opacity"; from: 0; to: 1; duration: root.motion; easing.type: Easing.OutCubic }
                     }
                     Muted { visible: root.status !== ""; text: root.status; Layout.fillWidth: true; elide: Text.ElideRight }
+                }
+            }
+        }
+        // Embedded editors: no native dialog windows or extra shell instances.
+        Item {
+            id: inlineEditor
+            anchors.fill: parent
+            z: 20
+            visible: settings.editorMode !== ""
+            Rectangle { anchors.fill: parent; color: "#99000000"; radius: 20 }
+            MouseArea { anchors.fill: parent; onClicked: {} }
+            Rectangle {
+                id: editorPanel
+                anchors.centerIn: parent
+                width: Math.min(parent.width-40,settings.editorMode==="color" ? 510 : 720)
+                height: Math.min(parent.height-40,settings.editorMode==="color" ? 360 : 490)
+                radius: 16
+                color: root.uiPanel
+                border.color: root.uiLine
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 20; spacing: 12
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Caption {
+                            text: settings.editorMode === "color" ? "Choose a color" : settings.editorMode === "avatar" ? "Choose avatar" : "Choose wallpaper"
+                            font.pixelSize: 21; font.weight: Font.DemiBold; Layout.fillWidth: true
+                        }
+                        Pill { text: "×"; implicitWidth: 34; onClicked: settings.closeEditor() }
+                    }
+                    Loader {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        sourceComponent: !inlineEditor.visible ? null : settings.editorMode === "color" ? colorEditor : imageEditor
+                    }
+                }
+            }
+        }
+        Component {
+            id: colorEditor
+            ColumnLayout {
+                spacing: 10
+                Rectangle {
+                    Layout.fillWidth: true; Layout.preferredHeight: 65
+                    radius: 10; color: settings.draftHex; border.color: root.uiLine
+                    Caption { anchors.centerIn: parent; text: settings.draftHex.toUpperCase(); color: root.contrastingText(settings.draftHex); font.pixelSize: 16; font.weight: Font.DemiBold }
+                }
+                Repeater {
+                    model: ["Red","Green","Blue"]
+                    delegate: RowLayout {
+                        id: channelRow
+                        required property string modelData
+                        required property int index
+                        Layout.fillWidth: true
+                        Caption { text: channelRow.modelData; Layout.preferredWidth: 48 }
+                        DeyraSlider {
+                            Layout.fillWidth: true; from: 0; to: 255; stepSize: 1
+                            value: parseInt(settings.draftHex.slice(1+channelRow.index*2,3+channelRow.index*2),16)
+                            onMoved: settings.setChannel(channelRow.index,value)
+                        }
+                        Muted { text: String(Math.round(parseInt(settings.draftHex.slice(1+channelRow.index*2,3+channelRow.index*2),16))); Layout.preferredWidth: 32 }
+                    }
+                }
+                RowLayout {
+                    DeyraInput {
+                        id: colorEntry
+                        Layout.fillWidth: true; text: settings.draftHex
+                        maximumLength: 7
+                        validator: RegularExpressionValidator { regularExpression: /#[0-9a-fA-F]{6}/ }
+                        onTextEdited: if (acceptableInput) settings.draftHex = text.toLowerCase()
+                        Connections { target: settings; function onDraftHexChanged() { if (colorEntry.text !== settings.draftHex) colorEntry.text = settings.draftHex } }
+                    }
+                    Pill { text: "Cancel"; onClicked: settings.closeEditor() }
+                    Pill { text: "Apply"; deyraSelected: true; enabled: colorEntry.acceptableInput; onClicked: { root.setAppearance(root.colorScope,root.colorRole,settings.draftHex); settings.closeEditor() } }
+                }
+                Item { Layout.fillHeight: true }
+            }
+        }
+        Component {
+            id: imageEditor
+            ColumnLayout {
+                spacing: 10
+                FolderListModel {
+                    id: imageFiles
+                    folder: settings.browseFolder
+                    nameFilters: ["*.png","*.jpg","*.jpeg","*.webp","*.PNG","*.JPG","*.JPEG","*.WEBP"]
+                    showDirs: true
+                    showFiles: true
+                    showDotAndDotDot: false
+                    showDirsFirst: true
+                    sortField: FolderListModel.Name
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Pill { text: "Home"; onClicked: { settings.browseFolder = "file://" + Quickshell.env("HOME"); settings.chosenImage = "" } }
+                    Pill { text: "↑"; onClicked: { settings.browseFolder = imageFiles.parentFolder.toString() || "file:///"; settings.chosenImage = "" } }
+                    DeyraInput {
+                        id: folderEntry
+                        Layout.fillWidth: true
+                        text: decodeURIComponent(settings.browseFolder.replace(/^file:\/\//,""))
+                        onAccepted: {
+                            const path = text.trim()
+                            if (path.startsWith("/")) { settings.browseFolder = "file://" + encodeURI(path); settings.chosenImage = "" }
+                        }
+                        Connections { target: settings; function onBrowseFolderChanged() { folderEntry.text = decodeURIComponent(settings.browseFolder.replace(/^file:\/\//,"")) } }
+                    }
+                    Pill { text: "Go"; onClicked: folderEntry.accepted() }
+                }
+                RowLayout {
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.fillHeight: true; radius: 9; color: root.uiBase; clip: true
+                        ListView {
+                            anchors.fill: parent; anchors.margins: 5
+                            model: imageFiles; clip: true; spacing: 3
+                            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                            delegate: Button {
+                                id: fileRow
+                                required property string fileName
+                                required property url fileUrl
+                                required property bool fileIsDir
+                                width: ListView.view.width; height: 35
+                                onClicked: {
+                                    if (fileIsDir) { settings.browseFolder = fileUrl.toString(); settings.chosenImage = "" }
+                                    else settings.chosenImage = fileUrl.toString()
+                                }
+                                background: Rectangle { radius: 6; color: settings.chosenImage === fileRow.fileUrl.toString() ? Qt.tint(root.uiRaised,Qt.alpha(root.accent,.18)) : fileRow.hovered ? root.uiRaised : "transparent" }
+                                contentItem: Caption { text: (fileRow.fileIsDir ? "▸  " : "    ") + fileRow.fileName; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
+                            }
+                            footer: Muted { visible: imageFiles.count===0; text: "No matching images or folders" }
+                        }
+                    }
+                    Rectangle {
+                        Layout.preferredWidth: Math.min(230,editorPanel.width*.34); Layout.fillHeight: true
+                        radius: 9; color: root.uiBase; clip: true
+                        Image { id: selectedPicture; anchors.fill: parent; anchors.margins: 8; source: settings.chosenImage; asynchronous: true; sourceSize.width: 480; fillMode: Image.PreserveAspectFit }
+                        Muted { anchors.centerIn: parent; visible: selectedPicture.status !== Image.Ready; text: selectedPicture.status === Image.Error ? "Unable to open image" : "Select an image" }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Muted { text: settings.chosenImage ? decodeURIComponent(settings.chosenImage.split("/").pop()) : "PNG, JPG, WEBP"; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Pill { text: "Cancel"; onClicked: settings.closeEditor() }
+                    Pill {
+                        text: "Select"; deyraSelected: true
+                        enabled: selectedPicture.status === Image.Ready
+                        onClicked: {
+                            if(settings.editorMode==="avatar") prefs.avatar = settings.chosenImage
+                            else prefs.wallpaper = settings.chosenImage
+                            settings.closeEditor()
+                        }
+                    }
                 }
             }
         }
@@ -1994,7 +2156,7 @@ ShellRoot {
                         Pill { text: "Accent"; deyraSelected: root.colorRole === "accent"; onClicked: root.colorRole = "accent" }
                         Pill { text: "Background"; deyraSelected: root.colorRole === "bg"; onClicked: root.colorRole = "bg" }
                         Item { Layout.fillWidth: true }
-                        Pill { text: "Color picker"; onClicked: { appearancePicker.selectedColor = root.editorColor; appearancePicker.open() } }
+                        Pill { text: "Color picker"; onClicked: settings.openColor() }
                     }
                     RowLayout {
                         Rectangle { width: 34; height: 34; radius: 8; color: root.editorColor; border.color: "#8b92aa" }
@@ -2264,7 +2426,7 @@ ShellRoot {
             Section {
                 Image { Layout.fillWidth: true; Layout.fillHeight: true; source: prefs.wallpaper; fillMode: Image.PreserveAspectFit; asynchronous: true; sourceSize.width: 700 }
                 RowLayout {
-                    Pill { text: "Choose local image"; onClicked: localPicker.open() }
+                    Pill { text: "Choose local image"; onClicked: settings.openImage("wallpaper") }
                     Pill { text: "Clear"; onClicked: prefs.wallpaper = "" }
                 }
             }
@@ -2312,7 +2474,7 @@ ShellRoot {
             Section {
                 Image { source: prefs.avatar; Layout.preferredWidth: 100; Layout.preferredHeight: 100; fillMode: Image.PreserveAspectCrop }
                 Caption { text: root.profileName; font.pixelSize: 22 }
-                Pill { text: "Choose avatar"; onClicked: avatarPicker.open() }
+                Pill { text: "Choose avatar"; onClicked: settings.openImage("avatar") }
                 Caption { text: root.systemInfo; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 Item { Layout.fillHeight: true }
             }
@@ -2338,6 +2500,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.3 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.4 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
