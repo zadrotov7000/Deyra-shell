@@ -41,6 +41,20 @@ class ManagerTests(unittest.TestCase):
         self.assertEqual(sum(row["recipe"] for row in rows.values()), 3)
         self.assertFalse(any(row["managed"] for row in rows.values()))
 
+    def test_cancelled_job_does_not_start_command(self):
+        marker = manager.cancel_path("a" * 24)
+        marker.parent.mkdir(parents=True)
+        marker.touch()
+        with mock.patch.object(manager, "cancel_marker", marker), \
+             mock.patch.object(manager.subprocess, "Popen") as child:
+            with self.assertRaises(manager.Cancelled):
+                manager.run(["git", "--version"])
+            child.assert_not_called()
+
+    def test_invalid_cancellation_token(self):
+        with self.assertRaises(ValueError):
+            manager.cancel_path("../../other")
+
     def test_invalid_project(self):
         with self.assertRaises(ValueError):
             manager.slug("../../other")
