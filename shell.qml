@@ -689,6 +689,90 @@ ShellRoot {
         status = scope + " now follows global appearance"
     }
     function componentPreview(scope) { return scope === "All" ? prefs.activePreset : styleFor(scope).name }
+    readonly property var upstreamMedia: {
+        "TQQ Rice": {
+            "image": "",
+            "gallery": "https://github.com/zadrotov7000/TQQ-Niri-rice",
+            "credit": "zadrotov7000"
+        },
+        "Noctalia": {
+            "image": "https://noctalia.dev/_app/immutable/assets/dreadwarrior2k.q9cLEQ2j.webp",
+            "gallery": "https://noctalia.dev/shell",
+            "credit": "dreadwarrior2k · Noctalia gallery"
+        },
+        "DankMaterialShell": {
+            "image": "https://github.com/user-attachments/assets/203a9678-c3b7-4720-bb97-853a511ac5c8",
+            "gallery": "https://github.com/duxlabs-dev/dux-shell#readme",
+            "credit": "Dux project README"
+        },
+        "Caelestia": {
+            "image": "",
+            "gallery": "https://github.com/user-attachments/assets/0840f496-575c-4ca6-83a8-87bb01a85c5f",
+            "credit": "Caelestia official video"
+        },
+        "Illogical Impulse": {
+            "image": "https://ii.clsty.link/screenshots/ii-qs.1.jpg",
+            "gallery": "https://ii.clsty.link/en/",
+            "credit": "illogical-impulse official documentation"
+        },
+        "HyDE": {
+            "image": "https://raw.githubusercontent.com/prasanthrangan/hyprdots/main/Source/assets/theme_select_1.png",
+            "gallery": "https://github.com/HyDE-Project/HyDE#readme",
+            "credit": "HyDE README · theme selector"
+        },
+        "ML4W": {
+            "image": "https://ml4w.com/os/screen-217.jpg",
+            "gallery": "https://ml4w.com/os/",
+            "credit": "ML4W official README"
+        },
+        "iNiR": {
+            "image": "https://raw.githubusercontent.com/snowarch/iNiR/main/docs/shots/readme-hero.webp",
+            "gallery": "https://github.com/snowarch/iNiR#readme",
+            "credit": "iNiR README"
+        },
+        "DotFriedRice": {
+            "image": "https://raw.githubusercontent.com/nickjj/dotfriedrice/master/_themes/tokyonight-moon/_preview.jpg",
+            "gallery": "https://github.com/nickjj/dotfriedrice#readme",
+            "credit": "Nick Janetakis · Tokyonight Moon"
+        },
+        "Ambxst": {
+            "image": "https://raw.githubusercontent.com/Axenide/Ambxst/main/assets/screenshots/1.png",
+            "gallery": "https://github.com/Axenide/Ambxst#readme",
+            "credit": "Axenide · README"
+        },
+        "DarkShadow": {
+            "image": "https://raw.githubusercontent.com/shadowww-dev/DarkShadowShell/main/assets/showcase.webp",
+            "gallery": "https://github.com/shadowww-dev/DarkShadowShell#readme",
+            "credit": "shadoww.dev · README showcase"
+        },
+        "Serpantinum": {
+            "image": "https://raw.githubusercontent.com/ilyamiro/serpantinum/master/docs/assets/previews/preview_1.png",
+            "gallery": "https://github.com/ilyamiro/serpantinum#readme",
+            "credit": "Serpantinum README"
+        }
+    }
+    property string themesView: "Originals"
+    property string originalTask: ""
+    function sourceDirectory(p) {
+        return statePath + "/upstream/" + p.name.toLowerCase().replace(/[^a-z0-9]+/g,"-")
+    }
+    function fetchOriginal(p) {
+        if (upstreamFetch.running) return
+        const path = sourceDirectory(p)
+        originalTask = p.name
+        status = "Downloading original sources for " + p.name + "..."
+        upstreamFetch.command = ["sh", "-c",
+            "set -eu; if [ -d \"$2/.git\" ]; then printf '%s\\n' 'Already downloaded'; exit 0; fi; exec git -c core.hooksPath=/dev/null -c protocol.file.allow=never clone --depth 1 --no-tags -- \"$1\" \"$2\"",
+            "deyra-source", p.url + ".git", path]
+        upstreamFetch.running = true
+    }
+    Process {
+        id: upstreamFetch
+        onExited: function(code) {
+            root.status = code === 0 ? root.originalTask + " sources available in the original-config folder." : "Source download failed (" + code + "). Check network and disk space."
+            root.originalTask = ""
+        }
+    }
     property string presetScope: "All"
     property string colorScope: "All"
     property string colorRole: "accent"
@@ -951,110 +1035,37 @@ ShellRoot {
         const variants = layoutProfiles[name] || layoutProfiles["TQQ Rice"]
         return scope === "All" ? "Desktop" : scope === "Notifications" ? "Notification style" : index >= 0 ? variants[index] : "Style"
     }
+    // Original screenshots are remote references, never invented renderings.
     component PresetPreview: Item {
-        id: preview
+        id: upstreamPreview
         property var profile
         property string previewScope: "All"
-        property string savedPreview: ""
-        property string pendingPath: ""
-        readonly property string filePath: profile ? root.statePath + "/previews/" + profile.name.toLowerCase().replace(/[^a-z0-9]+/g,"-") + "-" + previewScope.toLowerCase().replace(/[^a-z0-9]+/g,"-") + "-v1.png" : ""
-        onFilePathChanged: { savedPreview = ""; pendingPath = ""; art.requestPaint() }
-        Canvas {
-            id: art
-            anchors.centerIn: parent
-            width: 480; height: 270
-            scale: Math.min(preview.width / width, preview.height / height)
-            canvasSize: Qt.size(480,270)
-            onAvailableChanged: if (available) requestPaint()
-            onPaint: {
-                if (!preview.profile) return
-                const p = preview.profile, scope = preview.previewScope, modes = root.layoutProfiles[p.name]
-                const config = root.sourceProfiles.find(function(v) { return v.name === p.name }) || root.sourceProfiles[0]
-                const c = getContext("2d"), W=480,H=270, fg=root.contrastingText(p.bg)
-                c.reset(); c.clearRect(0,0,W,H)
-                function rect(x,y,w,h,r,col) {
-                    r=Math.max(0,Math.min(r,w/2,h/2)); c.fillStyle=col
-                    c.beginPath(); c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();c.fill()
-                }
-                function txt(t,x,y,size,col,bold) { c.fillStyle=col; c.font=(bold?"600 ":"")+size+"px sans-serif";c.textBaseline="middle";c.fillText(t,x,y) }
-                function line(x,y,w,col) {rect(x,y,w,1,0,col)}
-                function panel(x,y,w,h,r) {rect(x+2,y+4,w,h,r,"#12131b");rect(x,y,w,h,r,p.bg)}
-                const tile = Qt.tint(p.bg,Qt.rgba(1,1,1,.10))
-                const dim = Qt.tint(p.bg,Qt.rgba(1,1,1,.22))
-                function icon(k,x,y,size) {
-                    const colors=["#e38a61","#83a8df","#88b99b","#b99cdb","#dbb977","#80b8c5"]
-                    rect(x,y,size,size,size*.24,colors[k%colors.length])
-                    txt(["F","T","M","S","W","N"][k%6],x+size*.29,y+size*.52,size*.55,"#18202a",true)
-                }
-                const gradient=c.createLinearGradient(0,0,480,270);gradient.addColorStop(0,"#27374b");gradient.addColorStop(.55,"#1e3440");gradient.addColorStop(1,"#111b28");c.fillStyle=gradient;c.fillRect(0,0,W,H)
-                // Quiet geometric backdrop, not a screenshot or bundled wallpaper.
-                c.fillStyle="#344e58";c.beginPath();c.moveTo(0,220);c.lineTo(130,86);c.lineTo(270,220);c.closePath();c.fill()
-                c.fillStyle="#223b47";c.beginPath();c.moveTo(120,270);c.lineTo(330,67);c.lineTo(480,220);c.lineTo(480,270);c.closePath();c.fill()
-                function bar(y,scale) {
-                    c.save();c.translate(0,y);c.scale(scale,scale)
-                    const w=W/scale, h=25, mode=modes[0], r=Math.min(12,p.radius/2)
-                    if(mode==="full"||mode==="minimal")rect(8,2,w-16,h,r,p.bg)
-                    const symbols={launcher:"Apps",workspaces:"● • •",clock:"18:42",title:"Terminal",media:"♫",volume:"Vol 30%",network:"Wi-Fi",notifications:"Bell",battery:"83%",disk:"63%",cpu:"0.42",memory:"42%",brightness:"70%",wallpaper:"Wall",control:"Ctrl",settings:"Set"}
-                    function section(keys,pos) {
-                        const items=keys.map(function(k){return symbols[k]||k})
-                        const sizes=items.map(function(t){return Math.max(16,t.length*5.3+10)})
-                        const total=sizes.reduce(function(a,b){return a+b},0)+Math.max(0,items.length-1)*3
-                        let xx=pos===0?10:pos===1?(w-total)/2:w-total-10
-                        if(mode==="groups"||(pos===1&&(mode==="notch"||mode==="dynamic")))rect(xx-4,2,total+8,h,r,p.bg)
-                        for(let i=0;i<items.length;i++){if(mode==="islands")rect(xx,4,sizes[i],21,r,p.bg);txt(items[i],xx+4,14,9,keys[i]==="workspaces"?p.accent:fg,false);xx+=sizes[i]+3}
-                    }
-                    section(config.left,0);section(config.center,1);section(config.right,2);c.restore()
-                }
-                function dock(x,y,w) {
-                    const labels=modes[2]==="labeled";const count=5, sz=labels?27:32, gap=8, span=count*(labels?50:40)+12
-                    const left=x+(w-span)/2
-                    panel(left,y,span,labels?56:46,Math.min(p.radius,17))
-                    for(let i=0;i<count;i++){const ix=left+9+i*(labels?50:40);icon(i,ix+(labels?6:0),y+7,sz);if(labels)txt(["Files","Term","Music","Web","Notes"][i],ix,y+44,9,fg,false);else rect(ix+13,y+41,i===1?12:5,2,1,i===1?p.accent:dim)}
-                }
-                function launcher() {
-                    const m=modes[1],grid=m.indexOf("grid")===0,w=m==="grid-wide"?346:grid?286:220,h=215,x=m==="list-left"?20:(W-w)/2,y=26
-                    panel(x,y,w,h,p.radius)
-                    txt(grid?"Applications":"Launcher",x+15,y+19,15,fg,true);rect(x+14,y+33,w-28,26,7,tile);txt("Search applications",x+24,y+46,11,fg,false)
-                    const labels=["Files","Terminal","Music","Settings","Browser","Notes"]
-                    if(grid){const cols=m==="grid-wide"?4:3,cw=(w-28)/cols;for(let i=0;i<6;i++){const xx=x+14+(i%cols)*cw,yy=y+68+Math.floor(i/cols)*66;rect(xx,yy,cw-5,61,8,tile);icon(i,xx+(cw-31)/2,yy+5,27);txt(labels[i],xx+7,yy+47,10,fg,false)}}
-                    else {for(let i=0;i<4;i++){const yy=y+66+i*34;rect(x+14,yy,w-28,30,7,i===0?tile:p.bg);icon(i,x+20,yy+4,22);txt(labels[i],x+51,yy+15,12,fg,false)}}
-                }
-                function control() {
-                    const m=modes[3],w=m==="compact"?255:350,h=m==="tiles"?216:190,x=(W-w)/2,y=(H-h)/2
-                    panel(x,y,w,h,p.radius);txt("18:42",x+16,y+28,29,fg,true);txt("Wednesday, 25 November",x+17,y+52,11,fg,false)
-                    txt("Volume",x+16,y+76,11,fg,false);rect(x+16,y+89,w-32,5,3,dim);rect(x+16,y+89,(w-32)*.30,5,3,p.accent);rect(x+16+(w-32)*.30-4,y+85,12,12,6,p.accent)
-                    const cols=m==="tiles"?2:3, bw=(w-32-(cols-1)*6)/cols
-                    const names=["Do not disturb","Brightness −","Brightness +","Wallpapers","Notifications","Network"]
-                    for(let i=0;i<6;i++){const xx=x+16+(i%cols)*(bw+6),yy=y+108+Math.floor(i/cols)*30;rect(xx,yy,bw,26,7,tile);txt(names[i],xx+6,yy+13,10,fg,false)}
-                }
-                function switcher() {
-                    if(modes[4]==="radial"){const x=240,y=134,R=104;rect(x-R,y-R,R*2,R*2,R,p.bg);for(let i=0;i<6;i++){const a=i*Math.PI/3-Math.PI/2,xx=x+Math.cos(a)*70-18,yy=y+Math.sin(a)*70-18;if(i===1)rect(xx-4,yy-4,44,44,22,p.accent);icon(i,xx,yy,36)}txt("Terminal",211,134,13,fg,true)}
-                    else {panel(68,77,344,114,p.radius);for(let i=0;i<6;i++){const x=86+i*53;if(i===1)rect(x-4,94,44,44,12,p.accent);icon(i,x,98,36)}txt("Terminal",212,165,13,fg,true)}
-                }
-                function notification() {panel(126,52,328,85,p.radius);icon(3,140,66,27);txt("System",178,73,11,fg,false);txt("Update available",178,90,15,fg,true);txt("Your desktop is ready to update.",140,118,11,fg,false);panel(126,151,328,65,p.radius);txt("Notifications",140,169,15,fg,true);txt("Do not disturb     Off",140,196,12,fg,false)}
-                if(scope==="All"){bar(9,.82);panel(38,65,190,112,9);rect(46,74,174,18,4,tile);txt("Terminal",53,83,11,fg,true);txt("$ deyra shell",53,110,12,p.accent,false);txt("Ready.",53,129,11,fg,false);panel(246,52,193,137,p.radius);txt("Control center",260,70,13,fg,true);txt("18:42",260,101,27,fg,true);rect(260,127,161,5,2,dim);rect(260,127,72,5,2,p.accent);rect(260,144,76,25,7,tile);rect(342,144,79,25,7,tile);if(p.dock)dock(0,213,480)}
-                else if(scope==="Bar"){bar(30,.85);panel(50,100,380,120,12);rect(62,112,356,22,6,tile);txt("Desktop",74,123,13,fg,true);txt("Preview of module order and spacing",74,154,13,fg,false);txt(config.face+" workspace indicators",74,178,12,p.accent,false)}
-                else if(scope==="Dock")dock(0,112,480)
-                else if(scope==="Launcher")launcher()
-                else if(scope==="Control Center")control()
-                else if(scope==="Window Switcher")switcher()
-                else if(scope==="Notifications")notification()
-            }
-            onPainted: {
-                const path = preview.filePath
-                if (!path || preview.pendingPath === path || preview.savedPreview !== "") return
-                preview.pendingPath = path
-                art.grabToImage(function(result) {
-                    if (preview.filePath === path && result.saveToFile(path)) preview.savedPreview = "file://" + path
-                }, Qt.size(480,270))
-            }
-        }
+        readonly property var media: profile ? root.upstreamMedia[profile.name] : null
         Image {
+            id: shot
             anchors.fill: parent
-            source: preview.savedPreview
-            fillMode: Image.PreserveAspectFit
+            source: upstreamPreview.media ? upstreamPreview.media.image : ""
             asynchronous: true
-            visible: status === Image.Ready
+            cache: true
+            sourceSize.width: 700
+            fillMode: Image.PreserveAspectFit
+        }
+        Column {
+            anchors.centerIn: parent
+            width: parent.width-20; spacing: 7
+            visible: shot.status !== Image.Ready
+            Caption {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                text: shot.status === Image.Loading ? "Loading original preview…" : "Original screenshot unavailable"
+            }
+            Pill {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: !!upstreamPreview.media && shot.status !== Image.Loading
+                text: "Open official showcase"
+                onClicked: Qt.openUrlExternally(upstreamPreview.media.gallery)
+            }
         }
     }
     component Caption: Text {
@@ -1840,7 +1851,7 @@ ShellRoot {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
                         RowLayout {
                             Layout.fillWidth: true
-                            Muted { text: "v0.2.2 alpha"; Layout.fillWidth: true }
+                            Muted { text: "v0.2.3 alpha"; Layout.fillWidth: true }
                             Pill { text: "×"; implicitWidth: 34; implicitHeight: 32; onClicked: root.page = "" }
                         }
                     }
@@ -1872,6 +1883,71 @@ ShellRoot {
         }
         Component {
             id: themesPage
+            Section {
+                RowLayout {
+                    Layout.fillWidth: true
+                    Pill { text: "Original themes"; deyraSelected: root.themesView === "Originals"; onClicked: root.themesView = "Originals" }
+                    Pill { text: "Colors & appearance"; deyraSelected: root.themesView === "Colors"; onClicked: root.themesView = "Colors" }
+                    Item { Layout.fillWidth: true }
+                }
+                Loader {
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    sourceComponent: root.themesView === "Originals" ? originalsPage : appearancePage
+                }
+            }
+        }
+        Component {
+            id: originalsPage
+            Section {
+                Caption { text: "Original project library"; font.pixelSize: 18; font.weight: Font.DemiBold }
+                Muted { text: "Browse original screenshots and download the unmodified source repositories. Apply Deyra port uses only the features already integrated into this shell."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                GridView {
+                    id: originalGrid
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    clip: true
+                    cellWidth: width / Math.max(1,Math.floor(width/300))
+                    cellHeight: 300
+                    model: root.presets
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                    delegate: Rectangle {
+                        id: originalCard
+                        required property var modelData
+                        width: originalGrid.cellWidth-10
+                        height: originalGrid.cellHeight-10
+                        color: root.uiPanel; radius: 14
+                        border.color: root.uiLine
+                        ColumnLayout {
+                            anchors.fill: parent; anchors.margins: 10; spacing: 6
+                            Rectangle {
+                                Layout.fillWidth: true; Layout.fillHeight: true
+                                radius: 8; color: root.uiBase; clip: true
+                                PresetPreview { anchors.fill: parent; profile: originalCard.modelData }
+                            }
+                            Caption { text: originalCard.modelData.name; font.pixelSize: 17; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Muted { text: root.upstreamMedia[originalCard.modelData.name].credit; Layout.fillWidth: true; elide: Text.ElideRight }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Pill { text: root.originalTask === originalCard.modelData.name ? "Downloading…" : "Download configs"; enabled: !upstreamFetch.running; Layout.fillWidth: true; onClicked: root.fetchOriginal(originalCard.modelData) }
+                                Pill { text: "GitHub"; onClicked: Qt.openUrlExternally(originalCard.modelData.url) }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Pill { text: "Apply Deyra port"; Layout.fillWidth: true; onClicked: root.applyPreset(originalCard.modelData,"All") }
+                                Pill { text: "Showcase"; onClicked: Qt.openUrlExternally(root.upstreamMedia[originalCard.modelData.name].gallery) }
+                            }
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Muted { text: "Originals are downloaded separately; no installers are run."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                    Pill { text: "Open originals"; onClicked: Qt.openUrlExternally("file://" + root.statePath + "/upstream") }
+                }
+            }
+        }
+        Component {
+            id: appearancePage
             ScrollView {
                 id: themeScroll
                 clip: true
@@ -2050,7 +2126,7 @@ ShellRoot {
                         }
                     }
                 }
-                Muted { text: "Illustrated Deyra layout previews · not upstream screenshots. Scroll for all 12 profiles."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Muted { text: "Original project screenshots, not a preview of the partial Deyra ports."; Layout.fillWidth: true; wrapMode: Text.Wrap }
             }
         }
         Component {
@@ -2262,6 +2338,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.2 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.3 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
