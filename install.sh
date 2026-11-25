@@ -17,6 +17,11 @@ if [ -e "$target/shell.qml" ] || [ -L "$target/shell.qml" ]; then
 fi
 mkdir -p "$target/ports"
 cp -R ports/. "$target/ports/"
+mkdir -p "$target/matugen"
+install -m 644 matugen/config.toml "$target/matugen/config.toml"
+if ! command -v matugen >/dev/null 2>&1; then
+    printf '%s\n' "Optional dependency missing: matugen. Install it to enable wallpaper-based colors." >&2
+fi
 tmp=$(mktemp "$target/.shell.XXXXXX")
 trap 'rm -f "$tmp"' EXIT HUP INT TERM
 cat shell.qml > "$tmp"
