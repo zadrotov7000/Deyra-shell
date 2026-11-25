@@ -15,7 +15,11 @@ if [ -e "$target/shell.qml" ] || [ -L "$target/shell.qml" ]; then
     cp -L "$target/shell.qml" "$backup/"
     printf 'Backup: %s\n' "$backup"
 fi
-mkdir -p "$target/ports"
+mkdir -p "$target/ports" "$target/runtime"
+install -m 644 runtime/upstream.py "$target/runtime/upstream.py"
+if ! command -v python3 >/dev/null 2>&1; then
+    printf '%s\n' "Optional dependency missing: python3 (original shell switching unavailable)." >&2
+fi
 cp -R ports/. "$target/ports/"
 mkdir -p "$target/matugen"
 install -m 644 matugen/config.toml "$target/matugen/config.toml"
