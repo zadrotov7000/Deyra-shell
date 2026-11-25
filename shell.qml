@@ -17,9 +17,8 @@ ShellRoot {
     property string status: ""
     property var onlineResults: []
     property bool searching: false
-    property var selectedOnline: null
     property int selectedWindow: 0
-    property var windows: ToplevelManager.toplevels.values
+    property var windows: Array.from(ToplevelManager.toplevels.values).slice(0, 12)
     property var now: new Date()
     property color accent: prefs.accent
     property color surface: Qt.rgba(15/255,17/255,30/255,prefs.opacity)
@@ -30,7 +29,7 @@ ShellRoot {
     property bool dnd: false
     property string systemInfo: ""
     property string profileName: Quickshell.env("USER") || "User"
-    property string[] presetNames: ["TQQ Rice", "Noctalia", "DankMaterialShell", "Caelestia", "Illogical Impulse", "HyDE", "ML4W", "iNiR", "DotFriedRice", "Ambxst", "DarkShadow", "Serpantinum"]
+    property var presetNames: ["TQQ Rice", "Noctalia", "DankMaterialShell", "Caelestia", "Illogical Impulse", "HyDE", "ML4W", "iNiR", "DotFriedRice", "Ambxst", "DarkShadow", "Serpantinum"]
 
     function toggle(name) { page = page === name ? "" : name }
     function showSettings(section) { settingsTab = section; page = "settings" }
@@ -76,7 +75,7 @@ ShellRoot {
         xhr.send()
     }
     function downloadWallpaper(w) {
-        if (download.running || !w || !/^https:\/\/w\.wallhaven\.cc\/full\//.test(w.path)) return
+        if (download.running || moveFile.running || !w || !/^https:\/\/w\.wallhaven\.cc\/full\//.test(w.path)) return
         const ext = /\.png$/i.test(w.path) ? ".png" : ".jpg"
         download.destination = statePath + "/wallhaven-" + w.id + ext
         download.command = ["curl", "--fail", "--silent", "--show-error", "--max-time", "60", "--max-filesize", "40000000", "--output", download.destination + ".part", w.path]
@@ -100,7 +99,6 @@ ShellRoot {
             property bool barBottom: false
             property bool dockEnabled: true
             property bool desktopClock: false
-            property bool animations: true
             property bool showAudio: true
             property bool showNotifications: true
             property string wallpaper: ""
@@ -182,6 +180,7 @@ ShellRoot {
             border.width: 1
         }
     }
+    component Section: ColumnLayout { spacing: 12 }
     component Card: Rectangle {
         color: root.surface
         radius: prefs.radius
@@ -198,7 +197,7 @@ ShellRoot {
             WlrLayershell.layer: WlrLayer.Background
             exclusionMode: ExclusionMode.Ignore
             color: "#141727"
-            Image { anchors.fill: parent; source: prefs.wallpaper; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false; sourceSize.width: parent.width * 2 }
+            Image { anchors.fill: parent; source: prefs.wallpaper; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false; sourceSize.width: parent.width }
             Column {
                 visible: prefs.desktopClock
                 anchors { left: parent.left; top: parent.top; margins: 70 }
@@ -284,7 +283,7 @@ ShellRoot {
                 ListView {
                     id: apps
                     Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 5
-                    model: DesktopEntries.applications.values.filter(function(a) { return !a.noDisplay && (a.name + " " + a.genericName).toLowerCase().indexOf(query.text.toLowerCase()) >= 0 }).sort(function(a,b) { return a.name.localeCompare(b.name) })
+                    model: Array.from(DesktopEntries.applications.values).filter(function(a) { return !a.noDisplay && (a.name + " " + a.genericName).toLowerCase().indexOf(query.text.toLowerCase()) >= 0 }).sort(function(a,b) { return a.name.localeCompare(b.name) })
                     delegate: Button {
                         required property var modelData
                         width: ListView.view.width; height: 44
@@ -334,7 +333,7 @@ ShellRoot {
                 RowLayout {
                     Pill { text: "Wallpapers"; onClicked: root.showWallpapers() }
                     Pill { text: "Notifications"; onClicked: root.toggle("notifications") }
-                    Pill { text: "Lock"; onClicked: { root.page = ""; Quickshell.execDetached(["loginctl","lock-session"]) } }
+                    Pill { text: "Lock (planned)"; enabled: false }
                 }
             }
         }
@@ -424,7 +423,7 @@ ShellRoot {
         title: "Deyra Settings"
         implicitWidth: 900; implicitHeight: 570
         color: "#10121e"
-        onVisibleChanged: if (!visible && root.page === "settings") root.page = ""
+        onClosed: if (root.page === "settings") root.page = ""
         FileDialog {
             id: localPicker
             title: "Choose wallpaper"
@@ -463,7 +462,6 @@ ShellRoot {
                 Caption { text: root.status; color: root.accent; Layout.fillWidth: true; elide: Text.ElideRight }
             }
         }
-        component Section: ColumnLayout { spacing: 12 }
         Component {
             id: themesPage
             Section {
