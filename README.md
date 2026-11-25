@@ -2,7 +2,7 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.1.2 alpha — initial implementation with a selectable preset library, not a tested release.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.1.3 alpha — initial implementation with a selectable preset library, not a tested release.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
@@ -31,6 +31,12 @@ Before testing, temporarily stop other panels, wallpaper renderers and notificat
 - Twelve original Deyra style presets with source credits and a miniature palette preview. Open **Edit Mode → Presets**, select All or an individual component, then Apply. All changes the global style and resets component overrides; individual styles can be mixed across Bar, Dock, Launcher, Control Center, Notifications and Window Switcher. Use global clears an individual override. Presets now change actual component layouts as well as colors, transparency and rounding. They are native Deyra implementations inspired by the source projects, not full upstream ports.
 - Static local wallpapers and on-demand online wallpaper search in fixed nature/space categories, with safe-only filter and local download. Click a result to download and apply; no API key needed. Internet results are user-uploaded content and subject to provider availability.
 - Settings persistence in `$XDG_CONFIG_HOME/deyra-shell/settings.json` (normally `~/.config/deyra-shell/settings.json`).
+
+## Appearance editor
+
+Open Settings → Themes. Choose All or an individual component (Bar, Dock, Launcher, Control Center, Notifications or Window Switcher). Select Accent or Background, then choose from 80 swatches, enter a six-digit HEX value, or open the Qt color picker. The preview updates immediately. Opacity and corner radius are also configurable per scope. Inherit removes an individual component override; Reset appearance to preset restores its original colors and geometry without changing the chosen layout. Global edits do not overwrite existing component overrides.
+
+QtQuick.Dialogs is required for color and file pickers (Debian: `qml6-module-qtquick-dialogs`). Appearance settings persist in settings.json. The editor has not yet been runtime-tested on Niri or Hyprland.
 
 ## Native component layout variants
 
