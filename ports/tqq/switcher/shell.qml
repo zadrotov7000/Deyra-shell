@@ -94,7 +94,7 @@ PanelWindow {
 
     Process {
         id: paletteProcess
-        command: ["cat", (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/tqq-niri-rice/colors.json"]
+        command: Quickshell.env("DEYRA_PALETTE_JSON") ? ["printf", "%s", Quickshell.env("DEYRA_PALETTE_JSON")] : ["cat", (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/tqq-niri-rice/colors.json"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
