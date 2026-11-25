@@ -48,7 +48,7 @@ ShellRoot {
     }
     function activateWorkspace(ws) {
         if (!ws || !Number.isInteger(ws.id)) return
-        if (isNiri) Quickshell.execDetached(["niri","msg","raw-request",JSON.stringify({Action:{FocusWorkspace:{reference:{Id:ws.id}}}})])
+        if (isNiri) Quickshell.execDetached(["sh","-c","printf '%s\\n' \"$1\" | niri msg raw-request","deyra",JSON.stringify({Action:{FocusWorkspace:{reference:{Id:ws.id}}}})])
         else if (isHyprland && ws.id > 0) Quickshell.execDetached(["hyprctl","dispatch","workspace",String(ws.id)])
     }
     property color accent: prefs.accent
@@ -67,6 +67,8 @@ ShellRoot {
     property string configPath: Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
     property string statePath: configPath + "/deyra-shell"
     property var currentToast: null
+    property string toastTitle: ""
+    property string toastBody: ""
     property bool dnd: false
     property string systemInfo: ""
     property string profileName: Quickshell.env("USER") || "User"
@@ -493,7 +495,7 @@ ShellRoot {
         bodyMarkupSupported: false
         onNotification: function(notification) {
             notification.tracked = true
-            if (!root.dnd) { root.currentToast = notification; toastTimer.restart() }
+            if (!root.dnd) { root.toastTitle = notification.summary; root.toastBody = notification.body; root.currentToast = notification; toastTimer.restart() }
         }
     }
     Timer { id: toastTimer; interval: 4500; onTriggered: root.currentToast = null }
@@ -551,19 +553,19 @@ ShellRoot {
     component NavButton: Button {
         id: nav
         property string glyph: ""
-        property bool selected: false
+        property bool navSelected: false
         implicitHeight: 42
         padding: 12
         contentItem: RowLayout {
             spacing: 12
-            Caption { text: nav.glyph; font.pixelSize: 17; color: nav.selected ? root.accent : root.uiMuted; Layout.preferredWidth: 22; horizontalAlignment: Text.AlignHCenter }
-            Caption { text: nav.text; font.weight: nav.selected ? Font.DemiBold : Font.Normal; Layout.fillWidth: true; color: nav.selected ? root.foreground : "#b5b7c2" }
+            Caption { text: nav.glyph; font.pixelSize: 17; color: nav.navSelected ? root.accent : root.uiMuted; Layout.preferredWidth: 22; horizontalAlignment: Text.AlignHCenter }
+            Caption { text: nav.text; font.weight: nav.navSelected ? Font.DemiBold : Font.Normal; Layout.fillWidth: true; color: nav.navSelected ? root.foreground : "#b5b7c2" }
         }
         background: Rectangle {
             radius: 9
-            color: nav.selected ? Qt.tint(root.uiRaised, Qt.alpha(root.accent,.10)) : nav.hovered ? root.uiRaised : "transparent"
+            color: nav.navSelected ? Qt.tint(root.uiRaised, Qt.alpha(root.accent,.10)) : nav.hovered ? root.uiRaised : "transparent"
             Behavior on color { ColorAnimation { duration: root.motion / 2 } }
-            Rectangle { width: 3; height: 20; radius: 2; anchors { left: parent.left; verticalCenter: parent.verticalCenter }; color: root.accent; opacity: nav.selected ? 1 : 0; Behavior on opacity { NumberAnimation { duration: root.motion } } }
+            Rectangle { width: 3; height: 20; radius: 2; anchors { left: parent.left; verticalCenter: parent.verticalCenter }; color: root.accent; opacity: nav.navSelected ? 1 : 0; Behavior on opacity { NumberAnimation { duration: root.motion } } }
         }
     }
     component DeyraInput: TextField {
@@ -625,6 +627,7 @@ ShellRoot {
     component DeyraCheck: CheckBox {
         id: toggleControl
         implicitHeight: 36
+        implicitWidth: Math.max(220, contentItem.implicitWidth + 54)
         spacing: 12
         leftPadding: 0
         rightPadding: 0
@@ -1044,7 +1047,11 @@ ShellRoot {
         }
     }
     PanelWindow {
-        visible: root.currentToast !== null && !root.dnd
+        id: toastWindow
+        readonly property bool expanded: root.currentToast !== null && !root.dnd
+        property real reveal: expanded ? 1 : 0
+        Behavior on reveal { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
+        visible: expanded || reveal > .001
         anchors { top: true; right: true }
         margins { top: prefs.barHeight + 8; right: 12 }
         implicitWidth: 330; implicitHeight: 85
@@ -1053,10 +1060,12 @@ ShellRoot {
         Card {
             styleScope: "Notifications"
             anchors.fill: parent
+            opacity: toastWindow.reveal
+            transform: Translate { x: 18 * (1-toastWindow.reveal) }
             Column {
                 anchors.fill: parent; anchors.margins: 12
-                Caption { deyraTextScope: "Notifications"; width: parent.width; elide: Text.ElideRight; text: root.currentToast ? root.currentToast.summary : "" }
-                Caption { deyraTextScope: "Notifications"; width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight; text: root.currentToast ? root.currentToast.body : "" }
+                Caption { deyraTextScope: "Notifications"; width: parent.width; elide: Text.ElideRight; text: root.toastTitle }
+                Caption { deyraTextScope: "Notifications"; width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight; text: root.toastBody }
             }
         }
     }
@@ -1164,13 +1173,13 @@ ShellRoot {
                         Muted { text: "DESKTOP"; font.pixelSize: 10; font.letterSpacing: 1.2; Layout.leftMargin: 10 }
                         Repeater {
                             model: [{name:"Themes",glyph:"◉"},{name:"Edit Mode",glyph:"⊞"},{name:"Community",glyph:"◎"}]
-                            delegate: NavButton { required property var modelData; Layout.fillWidth: true; text: modelData.name; glyph: modelData.glyph; selected: root.settingsTab === modelData.name; onClicked: root.settingsTab = modelData.name }
+                            delegate: NavButton { required property var modelData; Layout.fillWidth: true; text: modelData.name; glyph: modelData.glyph; navSelected: root.settingsTab === modelData.name; onClicked: root.settingsTab = modelData.name }
                         }
                         Item { Layout.preferredHeight: 15 }
                         Muted { text: "SYSTEM"; font.pixelSize: 10; font.letterSpacing: 1.2; Layout.leftMargin: 10 }
                         Repeater {
                             model: [{name:"Profile",glyph:"♙"},{name:"System",glyph:"⚙"},{name:"Performance",glyph:"↗"},{name:"Updates",glyph:"↻"}]
-                            delegate: NavButton { required property var modelData; Layout.fillWidth: true; text: modelData.name; glyph: modelData.glyph; selected: root.settingsTab === modelData.name; onClicked: root.settingsTab = modelData.name }
+                            delegate: NavButton { required property var modelData; Layout.fillWidth: true; text: modelData.name; glyph: modelData.glyph; navSelected: root.settingsTab === modelData.name; onClicked: root.settingsTab = modelData.name }
                         }
                         Item { Layout.fillHeight: true }
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
@@ -1349,25 +1358,41 @@ ShellRoot {
                         id: presetCard
                         required property var modelData
                         width: presetGrid.cellWidth - 8; height: 136
-                        radius: 13; color: "#202437"
+                        radius: 13; color: root.uiPanel
                         border.width: 1
-                        border.color: root.componentPreview(root.presetScope) === modelData.name ? root.accent : "#383e58"
+                        border.color: root.componentPreview(root.presetScope) === modelData.name ? root.accent : root.uiLine
                         ColumnLayout {
                             anchors.fill: parent; anchors.margins: 8; spacing: 4
                             Rectangle {
-                                Layout.fillWidth: true; Layout.preferredHeight: 32
-                                color: Qt.alpha(modelData.bg, modelData.opacity); radius: modelData.radius / 2
+                                id: previewTile
+                                readonly property string barKind: root.layoutProfiles[presetCard.modelData.name][0]
+                                Layout.fillWidth: true; Layout.preferredHeight: 38
+                                color: root.uiBase; radius: 8; clip: true
+                                Rectangle { anchors.fill: parent; anchors.margins: 6; visible: previewTile.barKind === "full"; color: presetCard.modelData.bg; radius: 3 }
                                 Row {
-                                    anchors.centerIn: parent; spacing: 6
+                                    anchors { left: parent.left; leftMargin: 7; verticalCenter: parent.verticalCenter }
+                                    spacing: 3
                                     Repeater {
-                                        model: [24, 46, 24]
+                                        model: previewTile.barKind === "minimal" ? [5] : [10,5,5]
                                         delegate: Rectangle {
                                             required property int modelData
-                                            width: modelData; height: 16
-                                            color: "#303449"; radius: 7
-                                            border.color: presetCard.modelData.accent
+                                            width: modelData; height: 8; radius: 4
+                                            color: presetCard.modelData.accent
                                         }
                                     }
+                                }
+                                Rectangle {
+                                    anchors.centerIn: parent
+                                    width: previewTile.barKind === "dynamic" ? 46 : previewTile.barKind === "notch" ? 34 : 26
+                                    height: 12; radius: previewTile.barKind === "notch" ? 3 : 6
+                                    color: presetCard.modelData.bg
+                                    border.color: presetCard.modelData.accent
+                                    border.width: previewTile.barKind === "full" ? 0 : 1
+                                }
+                                Rectangle {
+                                    anchors { right: parent.right; rightMargin: 7; verticalCenter: parent.verticalCenter }
+                                    width: previewTile.barKind === "minimal" ? 8 : 25; height: 9; radius: 4
+                                    color: presetCard.modelData.accent
                                 }
                             }
                             Caption { text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
