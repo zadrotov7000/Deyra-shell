@@ -13,11 +13,117 @@ import Quickshell.Services.Notifications
 ShellRoot {
     id: root
     property string page: ""
+    // An original shell owns all desktop surfaces. Deyra remains only its settings manager.
+    property string externalShell: ""
+    property string pendingShell: ""
+    property string checkResult: ""
+    property bool switchingShell: false
+    readonly property bool nativeDesktop: externalShell === ""
+    readonly property var runnableShells: ["Serpantinum","Noctalia","DankMaterialShell","Caelestia","Illogical Impulse","iNiR","Ambxst"]
+    function runtimeSupported(name) {
+        if (runnableShells.indexOf(name) < 0) return false
+        if (name === "Caelestia" || name === "Illogical Impulse") return isHyprland
+        if (name === "iNiR") return isNiri
+        return isNiri || isHyprland
+    }
+    function runtimeDescription(name) {
+        if (runnableShells.indexOf(name)<0) return "Separate session integration required"
+        if (!runtimeSupported(name)) return "Unsupported on current compositor"
+        if (externalShell === name) return "Original runtime launched"
+        return "Requires installed original runtime"
+    }
+    function selectOriginal(name) {
+        if (switchingShell || externalShell === name) return
+        if (!runtimeSupported(name)) { status = runtimeDescription(name); return }
+        pendingShell = name
+        checkResult = ""
+        switchingShell = true
+        status = "Checking original " + name + " installation…"
+        upstreamCheck.command = ["python3",Quickshell.shellPath("runtime/upstream.py"),"check",name]
+        upstreamCheck.running = true
+    }
+    function startPendingShell() {
+        const name = pendingShell
+        if (!name) { switchingShell = false; return }
+        stopOriginalPanels()
+        currentToast = null
+        hideBarTip(null)
+        page = ""
+        externalShell = name
+        // Release notification registration and layer-shell surfaces before launching upstream.
+        shellStartDelay.restart()
+    }
+    function returnToDeyra() {
+        if (switchingShell) return
+        pendingShell = ""
+        if (!externalShell) return
+        switchingShell = true
+        status = "Stopping original " + externalShell + "…"
+        if (upstreamRuntime.running) upstreamRuntime.running = false
+        else { externalShell = ""; switchingShell = false }
+    }
+    Process {
+        id: upstreamCheck
+        stdout: StdioCollector { onStreamFinished: root.checkResult = text.trim() }
+        onExited: function(code) {
+            if (code !== 0) {
+                root.status = root.checkResult || "Original runtime is unavailable. Install it first."
+                root.pendingShell = ""
+                root.switchingShell = false
+                return
+            }
+            if (upstreamRuntime.running) upstreamRuntime.running = false
+            else root.startPendingShell()
+        }
+    }
+    Timer {
+        id: shellStartDelay
+        interval: 650
+        onTriggered: {
+            upstreamRuntime.command = ["python3",Quickshell.shellPath("runtime/upstream.py"),"run",root.externalShell]
+            upstreamRuntime.running = true
+            launchWatch.restart()
+        }
+    }
+    Timer {
+        id: launchWatch
+        interval: 3000
+        onTriggered: {
+            if (upstreamRuntime.running) {
+                root.pendingShell = ""
+                root.switchingShell = false
+                root.status = "Original " + root.externalShell + " process is running. Check its own interface."
+            } else if (root.switchingShell) {
+                root.externalShell = ""; root.pendingShell = ""; root.switchingShell = false
+                root.status = "Original runtime did not stay running; Deyra restored."
+                root.page = "settings"
+            }
+        }
+    }
+    Process {
+        id: upstreamRuntime
+        stdout: SplitParser { onRead: function(line) { console.log("[upstream] " + line) } }
+        stderr: SplitParser { onRead: function(line) { console.warn("[upstream] " + line) } }
+        onExited: function(code) {
+            launchWatch.stop()
+            const previous = root.externalShell
+            if (root.switchingShell && root.pendingShell && root.pendingShell !== previous) {
+                root.startPendingShell()
+                return
+            }
+            root.externalShell = ""
+            root.pendingShell = ""
+            root.switchingShell = false
+            root.status = "Original " + previous + " exited (" + code + "); Deyra restored."
+            root.page = "settings"
+        }
+    }
     property var tipOwner: null
     property var tipScreen: null
     property string tipText: ""
     property real tipX: 0
     function showBarTip(owner, output, label) {
+        if (!nativeDesktop) return
         if (!owner || !label || page !== "") return
         const screen = Array.from(Quickshell.screens).find(function(s){return s.name === output})
         if (!screen) return
@@ -677,6 +783,7 @@ ShellRoot {
         return dynamicColors ? Object.assign({}, base, {accent:paletteColor("primary",base.accent), bg:paletteColor("background",base.bg)}) : base
     }
     function applyPreset(preset, scope) {
+        if (!nativeDesktop) { status = "Return to Deyra to edit its legacy components."; return }
         if (!preset || !presets.some(function(p){return p.name===preset.name})) return
         hideBarTip(null)
         stopOriginalPanels()
@@ -897,6 +1004,7 @@ ShellRoot {
         onExited: function(code) { const stopped = root.stoppingOriginalControl; root.stoppingOriginalControl = false; if (!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original dashboard failed ("+code+"); using native fallback."; root.page = "control" } }
     }
     function toggle(name) {
+        if (!nativeDesktop) { if(name === "settings") openSettings(); else status = "Use the original shell controls"; return }
         hideBarTip(null)
         if (name === "control" && originalTqq("Control Center")) {
             if (originalControl.running) { Quickshell.execDetached(["qs","-p",portPath("dashboard"),"ipc","call","tqqControlCenter","close"]); return }
@@ -915,6 +1023,7 @@ ShellRoot {
     function showSettings(section) { settingsTab = section; openSettings() }
     function showWallpapers() { editTab = "Wallpapers"; showSettings("Edit Mode") }
     function cycleWindow() {
+        if (!nativeDesktop) return
         if (isNiri && originalTqq("Window Switcher")) {
             if (originalSwitcher.running) Quickshell.execDetached(["qs","-p",portPath("switcher"),"ipc","call","tqq-switcher","next"])
             else { page = ""; originalSwitcher.running = true }
@@ -927,6 +1036,7 @@ ShellRoot {
         } else selectedWindow = (selectedWindow + 1) % windows.length
     }
     function confirmWindow() {
+        if (!nativeDesktop) return
         if (originalSwitcher.running) { Quickshell.execDetached(["qs","-p",portPath("switcher"),"ipc","call","tqq-switcher","confirm"]); return }
         if (windows[selectedWindow]) windows[selectedWindow].activate()
         page = ""
@@ -974,11 +1084,11 @@ ShellRoot {
     Process {
         id: niriEvents
         command: ["niri","msg","--json","event-stream"]
-        running: root.isNiri
+        running: root.nativeDesktop && root.isNiri
         stdout: SplitParser { onRead: function(line) { root.niriEvent(line) } }
         onExited: if (root.isNiri) niriRetry.restart()
     }
-    Timer { id: niriRetry; interval: 3000; onTriggered: if (root.isNiri && !niriEvents.running) niriEvents.running = true }
+    Timer { id: niriRetry; interval: 3000; onTriggered: if (root.nativeDesktop && root.isNiri && !niriEvents.running) niriEvents.running = true }
     Process {
         id: hyprSnapshot
         command: ["sh","-c","hyprctl -j monitors; printf '\\n--DEYRA--\\n'; hyprctl -j workspaces"]
@@ -995,7 +1105,7 @@ ShellRoot {
             }
         }
     }
-    Timer { interval: 2000; running: root.isHyprland; repeat: true; triggeredOnStart: true; onTriggered: if (!hyprSnapshot.running) hyprSnapshot.running = true }
+    Timer { interval: 2000; running: root.nativeDesktop && root.isHyprland; repeat: true; triggeredOnStart: true; onTriggered: if (!hyprSnapshot.running) hyprSnapshot.running = true }
     Process {
         id: networkStatus
         command: ["sh","-c","if command -v nmcli >/dev/null 2>&1; then nmcli -t -f TYPE,STATE,CONNECTION device status; fi"]
@@ -1009,7 +1119,7 @@ ShellRoot {
             }
         }
     }
-    Timer { interval: 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!networkStatus.running) networkStatus.running = true }
+    Timer { interval: 15000; running: root.nativeDesktop; repeat: true; triggeredOnStart: true; onTriggered: if (!networkStatus.running) networkStatus.running = true }
     // Linux status information via fixed commands; never run commands from imported configs.
     Process {
         id: machineStats
@@ -1024,19 +1134,19 @@ ShellRoot {
             }
         }
     }
-    Timer { interval: 12000; running: true; repeat: true; triggeredOnStart: true; onTriggered: if(!machineStats.running) machineStats.running = true }
+    Timer { interval: 12000; running: root.nativeDesktop; repeat: true; triggeredOnStart: true; onTriggered: if(!machineStats.running) machineStats.running = true }
     Process {
         id: mediaInfo
         command: ["sh","-c","if command -v playerctl >/dev/null 2>&1; then playerctl metadata --format '{{title}}' 2>/dev/null; fi"]
         stdout: StdioCollector { onStreamFinished: root.mediaText = text.trim().slice(0,80) }
     }
-    Timer { interval: 3500; running: root.effectiveBarLayout.left.concat(root.effectiveBarLayout.center,root.effectiveBarLayout.right).indexOf("media") >= 0; repeat: true; triggeredOnStart: true; onTriggered: if(!mediaInfo.running) mediaInfo.running = true }
+    Timer { interval: 3500; running: root.nativeDesktop && root.effectiveBarLayout.left.concat(root.effectiveBarLayout.center,root.effectiveBarLayout.right).indexOf("media") >= 0; repeat: true; triggeredOnStart: true; onTriggered: if(!mediaInfo.running) mediaInfo.running = true }
     Process {
         id: brightnessInfo
         command: ["sh","-c","if command -v brightnessctl >/dev/null 2>&1; then brightnessctl -m 2>/dev/null | cut -d, -f4 | head -n1; fi"]
         stdout: StdioCollector { onStreamFinished: root.brightnessText = text.trim() }
     }
-    Timer { interval: 8000; running: root.effectiveBarLayout.left.concat(root.effectiveBarLayout.center,root.effectiveBarLayout.right).indexOf("brightness") >= 0; repeat: true; triggeredOnStart: true; onTriggered: if(!brightnessInfo.running) brightnessInfo.running = true }
+    Timer { interval: 8000; running: root.nativeDesktop && root.effectiveBarLayout.left.concat(root.effectiveBarLayout.center,root.effectiveBarLayout.right).indexOf("brightness") >= 0; repeat: true; triggeredOnStart: true; onTriggered: if(!brightnessInfo.running) brightnessInfo.running = true }
     property string matugenStatus: "Choose a wallpaper to generate a palette."
     property string requestedWallpaper: ""
     function queueMatugen() {
@@ -1172,13 +1282,17 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: root.systemInfo = text }
     }
     PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
-    NotificationServer {
-        id: notifications
-        bodySupported: true
-        bodyMarkupSupported: false
-        onNotification: function(notification) {
-            notification.tracked = true
-            if (!root.dnd) { root.toastTitle = notification.summary; root.toastBody = notification.body; root.currentToast = notification; toastTimer.restart() }
+    readonly property var notifications: notificationLoader.item
+    LazyLoader {
+        id: notificationLoader
+        active: root.nativeDesktop
+        component: NotificationServer {
+            bodySupported: true
+            bodyMarkupSupported: false
+            onNotification: function(notification) {
+                notification.tracked = true
+                if (!root.dnd) { root.toastTitle = notification.summary; root.toastBody = notification.body; root.currentToast = notification; toastTimer.restart() }
+            }
         }
     }
     Timer { id: toastTimer; interval: 4500; onTriggered: root.currentToast = null }
@@ -1514,7 +1628,7 @@ ShellRoot {
     }
 
     Variants {
-        model: Quickshell.screens
+        model: root.nativeDesktop ? Quickshell.screens : []
         delegate: PanelWindow {
             required property var modelData
             screen: modelData
@@ -1625,7 +1739,7 @@ ShellRoot {
                 label: {
                     switch(module.moduleKey) {
                         case "volume": return Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? Math.round(Pipewire.defaultAudioSink.audio.volume*100)+"%" : ""
-                        case "notifications": return notifications.trackedNotifications.values.length ? String(notifications.trackedNotifications.values.length) : ""
+                        case "notifications": return root.notifications && root.notifications.trackedNotifications.values.length ? String(root.notifications.trackedNotifications.values.length) : ""
                         case "battery": return root.batteryText
                         case "disk": return root.diskText
                         case "memory": return root.memoryText
@@ -1666,7 +1780,7 @@ ShellRoot {
         }
     }
     Variants {
-        model: Quickshell.screens
+        model: root.nativeDesktop ? Quickshell.screens : []
         delegate: PanelWindow {
             id: barWindow
             required property var modelData
@@ -1740,7 +1854,7 @@ ShellRoot {
         readonly property var matches: Array.from(DesktopEntries.applications.values).filter(function(a) {
             return !a.noDisplay && (a.name + " " + (a.genericName || "")).toLowerCase().indexOf(query.text.toLowerCase()) >= 0
         }).sort(function(a,b) { return a.name.localeCompare(b.name) })
-        readonly property bool expanded: root.page === "launcher"
+        readonly property bool expanded: root.nativeDesktop && root.page === "launcher"
         property real reveal: expanded ? 1 : 0
         Behavior on reveal { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
         visible: expanded || reveal > .001
@@ -1813,7 +1927,7 @@ ShellRoot {
     PanelWindow {
         id: controlWindow
         readonly property string mode: root.layoutFor("Control Center")
-        readonly property bool expanded: root.page === "control"
+        readonly property bool expanded: root.nativeDesktop && root.page === "control"
         property real reveal: expanded ? 1 : 0
         Behavior on reveal { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
         visible: expanded || reveal > .001
@@ -1883,7 +1997,7 @@ ShellRoot {
     }
     PanelWindow {
         id: alertsWindow
-        readonly property bool expanded: root.page === "notifications"
+        readonly property bool expanded: root.nativeDesktop && root.page === "notifications"
         property real reveal: expanded ? 1 : 0
         Behavior on reveal { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
         visible: expanded || reveal > .001
@@ -1904,7 +2018,7 @@ ShellRoot {
                 RowLayout { Caption { deyraTextScope: "Notifications"; text: "Notifications"; Layout.fillWidth: true; font.pixelSize: 18 } Pill { styleScope: "Notifications"; text: "×"; onClicked: root.page = "" } }
                 ListView {
                     Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                    model: notifications.trackedNotifications
+                    model: root.notifications ? root.notifications.trackedNotifications : []
                     delegate: ItemDelegate {
                         required property var modelData
                         width: ListView.view.width
@@ -1920,7 +2034,7 @@ ShellRoot {
     }
     PanelWindow {
         id: toastWindow
-        readonly property bool expanded: root.currentToast !== null && !root.dnd
+        readonly property bool expanded: root.nativeDesktop && root.currentToast !== null && !root.dnd
         property real reveal: expanded ? 1 : 0
         Behavior on reveal { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
         visible: expanded || reveal > .001
@@ -1944,7 +2058,7 @@ ShellRoot {
     PanelWindow {
         id: switcher
         readonly property bool radial: root.layoutFor("Window Switcher") === "radial"
-        readonly property bool expanded: root.page === "switcher"
+        readonly property bool expanded: root.nativeDesktop && root.page === "switcher"
         property real reveal: expanded ? 1 : 0
         Behavior on reveal { NumberAnimation { duration: prefs.reduceMotion || !prefs.switcherAnimated ? 0 : prefs.switcherDuration; easing.type: Easing.OutCubic } }
         visible: expanded || reveal > .001
@@ -2070,7 +2184,7 @@ ShellRoot {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
                         RowLayout {
                             Layout.fillWidth: true
-                            Muted { text: "v0.2.7 alpha"; Layout.fillWidth: true }
+                            Muted { text: "v0.3.0 alpha"; Layout.fillWidth: true }
                             Pill { text: "×"; implicitWidth: 34; implicitHeight: 32; onClicked: root.page = "" }
                         }
                     }
@@ -2268,8 +2382,12 @@ ShellRoot {
         Component {
             id: originalsPage
             Section {
-                Caption { text: "Original project library"; font.pixelSize: 18; font.weight: Font.DemiBold }
-                Muted { text: "Browse original screenshots and download the unmodified source repositories. Apply Deyra port uses only the features already integrated into this shell."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Caption { text: root.nativeDesktop ? "Deyra · select an original shell" : root.externalShell + " · original runtime"; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Pill { text: "Return to Deyra"; visible: !root.nativeDesktop; enabled: !root.switchingShell; onClicked: root.returnToDeyra() }
+                }
+                Muted { text: "Launch the installed upstream shell with its own bar, launcher, widgets, settings and services. Deyra does not substitute its own UI. Install the original runtime first."; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 GridView {
                     id: originalGrid
                     Layout.fillWidth: true; Layout.fillHeight: true
@@ -2295,7 +2413,7 @@ ShellRoot {
                             }
                             Caption { text: originalCard.modelData.name; font.pixelSize: 17; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                             Muted { text: root.upstreamMedia[originalCard.modelData.name].credit; Layout.fillWidth: true; elide: Text.ElideRight }
-                            Muted { text: root.portDescription(originalCard.modelData.name,"All"); Layout.fillWidth: true; elide: Text.ElideRight }
+                            Muted { text: root.runtimeDescription(originalCard.modelData.name); Layout.fillWidth: true; elide: Text.ElideRight }
                             RowLayout {
                                 Layout.fillWidth: true
                                 Pill { text: root.originalTask === originalCard.modelData.name ? "Downloading…" : "Download configs"; enabled: !upstreamFetch.running; Layout.fillWidth: true; onClicked: root.fetchOriginal(originalCard.modelData) }
@@ -2303,7 +2421,7 @@ ShellRoot {
                             }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Pill { text: root.presetSelected(originalCard.modelData.name,"All") ? "Active profile" : "Apply profile"; deyraSelected: root.presetSelected(originalCard.modelData.name,"All"); Layout.fillWidth: true; onClicked: root.applyPreset(originalCard.modelData,"All") }
+                                Pill { text: root.externalShell === originalCard.modelData.name ? "Original active" : "Launch original"; deyraSelected: root.externalShell === originalCard.modelData.name; enabled: !root.switchingShell && root.runtimeSupported(originalCard.modelData.name) && root.externalShell !== originalCard.modelData.name; Layout.fillWidth: true; onClicked: root.selectOriginal(originalCard.modelData.name) }
                                 Pill { text: "Showcase"; onClicked: Qt.openUrlExternally(root.upstreamMedia[originalCard.modelData.name].gallery) }
                             }
                         }
@@ -2311,7 +2429,7 @@ ShellRoot {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Muted { text: "Originals are downloaded separately; no installers are run."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                    Muted { text: "Source downloads do not install runtimes. Use the upstream installation instructions. Reopen this manager: qs -c deyra ipc call deyra settings."; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     Pill { text: "Open originals"; onClicked: Qt.openUrlExternally("file://" + root.statePath + "/upstream") }
                 }
             }
@@ -2481,7 +2599,7 @@ ShellRoot {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Caption { text: root.presetScope === "All" ? "Complete desktop profiles" : root.presetScope + " presets"; font.pixelSize: 17; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                    Caption { text: root.presetScope === "All" ? "Legacy Deyra layouts (not original shells)" : root.presetScope + " presets"; font.pixelSize: 17; font.weight: Font.DemiBold; Layout.fillWidth: true }
                     Pill { text: "Use global"; visible: root.presetScope !== "All"; onClicked: root.resetComponent(root.presetScope) }
                 }
                 GridView {
@@ -2750,6 +2868,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.7 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.3.0 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
