@@ -201,6 +201,26 @@ ShellRoot {
         }
     ]
     readonly property var supportedScopes: ["Bar", "Dock", "Launcher", "Control Center", "Notifications", "Window Switcher"]
+    // Native component layouts, independent of colors; inspired by upstream UI concepts.
+    readonly property var layoutProfiles: ({
+        "TQQ Rice":          ["islands", "list-left", "icons", "dashboard", "radial"],
+        "Noctalia":          ["full", "grid-center", "icons", "dashboard", "row"],
+        "DankMaterialShell": ["full", "grid-center", "labeled", "tiles", "row"],
+        "Caelestia":         ["notch", "grid-center", "icons", "tiles", "radial"],
+        "Illogical Impulse": ["full", "grid-wide", "labeled", "tiles", "row"],
+        "HyDE":              ["groups", "list-center", "icons", "compact", "row"],
+        "ML4W":              ["groups", "grid-center", "labeled", "dashboard", "row"],
+        "iNiR":              ["full", "grid-wide", "icons", "tiles", "radial"],
+        "DotFriedRice":      ["minimal", "list-center", "labeled", "compact", "row"],
+        "Ambxst":           ["groups", "grid-wide", "icons", "tiles", "radial"],
+        "DarkShadow":       ["dynamic", "grid-center", "labeled", "dashboard", "radial"],
+        "Serpantinum":      ["notch", "list-center", "icons", "compact", "row"]
+    })
+    function layoutFor(scope) {
+        const idx = ["Bar","Launcher","Dock","Control Center","Window Switcher"].indexOf(scope)
+        const layouts = layoutProfiles[styleFor(scope).name] || layoutProfiles["TQQ Rice"]
+        return idx >= 0 ? layouts[idx] : "default"
+    }
     function styleFor(scope) {
         const p = prefs.componentStyles[scope]
         return p || {name: prefs.activePreset, accent: prefs.accent, bg: prefs.background, opacity: prefs.opacity, radius: prefs.radius}
@@ -370,6 +390,7 @@ ShellRoot {
         id: button
         property bool highlighted: false
         property string styleScope: ""
+        property bool flat: false
         readonly property var palette: root.styleFor(styleScope)
         implicitHeight: 34
         implicitWidth: Math.max(42, contentItem.implicitWidth + 24)
@@ -383,13 +404,13 @@ ShellRoot {
         }
         background: Rectangle {
             radius: button.palette.radius
-            color: button.hovered || button.highlighted ? Qt.lighter(button.palette.bg, 1.45) : Qt.alpha(button.palette.bg, button.palette.opacity)
+            color: button.hovered || button.highlighted ? Qt.lighter(button.palette.bg, 1.45) : button.flat ? "transparent" : Qt.alpha(button.palette.bg, button.palette.opacity)
             border.color: button.palette.accent
-            border.width: 1
+            border.width: button.flat ? 0 : 1
         }
     }
     component Section: ColumnLayout { spacing: 12 }
-    component BarPill: Pill { styleScope: "Bar" }
+    component BarPill: Pill { styleScope: "Bar"; flat: root.layoutFor("Bar") !== "islands" }
     component Card: Rectangle {
         property string styleScope: ""
         readonly property var palette: root.styleFor(styleScope)
@@ -421,36 +442,73 @@ ShellRoot {
         model: Quickshell.screens
         delegate: PanelWindow {
             required property var modelData
+            readonly property string mode: root.layoutFor("Bar")
             screen: modelData
             anchors { top: !prefs.barBottom; bottom: prefs.barBottom; left: true; right: true }
             implicitHeight: prefs.barHeight
             color: "transparent"
-            Row {
-                anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
-                spacing: 6
-                BarPill { text: "⌕"; highlighted: true; onClicked: root.toggle("launcher") }
-                BarPill { text: "Deyra"; onClicked: root.toggle("settings") }
-            }
-            BarPill {
-                anchors.centerIn: parent
-                text: Qt.formatDateTime(root.now, "ddd  hh:mm")
-                onClicked: root.toggle("control")
-            }
-            Row {
-                anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
-                spacing: 6
-                BarPill { visible: prefs.showAudio; text: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? "Vol " + Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : "Audio"; onClicked: root.toggle("control") }
-                BarPill { visible: prefs.showNotifications; text: "Alerts " + notifications.trackedNotifications.values.length; onClicked: root.toggle("notifications") }
-                BarPill { text: "⚙"; onClicked: root.toggle("settings") }
+            Item {
+                id: barArea
+                anchors.fill: parent
+                readonly property string mode: parent.mode
+                Card {
+                    styleScope: "Bar"; visible: barArea.mode === "full"
+                    anchors.fill: parent; anchors.margins: 2
+                    radius: 4
+                }
+                Card {
+                    styleScope: "Bar"; visible: barArea.mode === "groups"
+                    anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                    width: leftBar.implicitWidth + 12; height: 36
+                }
+                Card {
+                    styleScope: "Bar"; visible: barArea.mode === "groups"
+                    anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                    width: rightBar.implicitWidth + 12; height: 36
+                }
+                Row {
+                    id: leftBar
+                    anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
+                    spacing: 5
+                    BarPill { text: "⌕"; highlighted: true; onClicked: root.toggle("launcher") }
+                    BarPill { visible: barArea.mode !== "minimal" && barArea.mode !== "dynamic"; text: "Deyra"; onClicked: root.toggle("settings") }
+                    Caption { visible: barArea.mode === "minimal"; anchors.verticalCenter: parent.verticalCenter; width: Math.min(170, barArea.width/5); elide: Text.ElideRight; text: root.windows.length ? root.windows[0].title : "Desktop" }
+                }
+                Card {
+                    styleScope: "Bar"
+                    visible: ["notch","dynamic","groups"].indexOf(barArea.mode) >= 0
+                    anchors.centerIn: parent
+                    width: barArea.mode === "dynamic" && islandHover.hovered ? 230 : Math.max(110, central.implicitWidth+12)
+                    height: Math.min(38, barArea.height)
+                    radius: barArea.mode === "notch" ? 10 : 22
+                    Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                    HoverHandler { id: islandHover }
+                }
+                BarPill {
+                    id: central
+                    anchors.centerIn: parent
+                    text: barArea.mode === "dynamic" && islandHover.hovered ? Qt.formatDateTime(root.now, "hh:mm · d MMM") + (root.dnd ? " · DND" : "") : Qt.formatDateTime(root.now, "ddd  hh:mm")
+                    onClicked: root.toggle("control")
+                }
+                Row {
+                    id: rightBar
+                    anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                    spacing: 5
+                    BarPill { visible: prefs.showAudio && barArea.mode !== "minimal"; text: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? "Vol " + Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : "Audio"; onClicked: root.toggle("control") }
+                    BarPill { visible: prefs.showNotifications && barArea.mode !== "minimal"; text: "Alerts " + notifications.trackedNotifications.values.length; onClicked: root.toggle("notifications") }
+                    BarPill { text: "⚙"; onClicked: root.toggle("settings") }
+                }
             }
         }
     }
     PanelWindow {
+        id: dockWindow
+        readonly property bool labeled: root.layoutFor("Dock") === "labeled"
         visible: prefs.dockEnabled
         anchors.bottom: true
         margins.bottom: prefs.barBottom ? prefs.barHeight + 6 : 6
         implicitWidth: Math.min(screen ? screen.width - 20 : 700, dockRow.implicitWidth + 18)
-        implicitHeight: 58
+        implicitHeight: dockWindow.labeled ? 76 : 58
         color: "transparent"
         Card {
             styleScope: "Dock"
@@ -461,13 +519,16 @@ ShellRoot {
                 spacing: 6
                 Pill { styleScope: "Dock"; text: "⌕"; onClicked: root.toggle("launcher") }
                 Repeater {
-                    model: root.windows.slice(0, 12)
+                    model: root.windows.slice(0, Math.max(1, Math.min(12, Math.floor(((dockWindow.screen ? dockWindow.screen.width : 700)-80)/(dockWindow.labeled ? 84 : 48)))))
                     delegate: Button {
                         required property var modelData
-                        width: 42; height: 42
+                        width: dockWindow.labeled ? 78 : 42; height: dockWindow.labeled ? 60 : 42
                         onClicked: modelData.activate()
                         background: Rectangle { radius: 12; color: parent.hovered ? "#343854" : "transparent"; border.width: modelData.activated ? 1 : 0; border.color: root.styleFor("Dock").accent }
-                        contentItem: Image { source: root.appIcon(modelData); fillMode: Image.PreserveAspectFit; sourceSize.width: 32; sourceSize.height: 32 }
+                        contentItem: ColumnLayout {
+                            Image { source: root.appIcon(modelData); fillMode: Image.PreserveAspectFit; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 30; Layout.preferredHeight: 30 }
+                            Caption { visible: dockWindow.labeled; text: modelData.title; Layout.fillWidth: true; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 10 }
+                        }
                         ToolTip.visible: hovered
                         ToolTip.text: modelData.title
                     }
@@ -477,46 +538,82 @@ ShellRoot {
     }
     PanelWindow {
         id: launcher
+        readonly property string mode: root.layoutFor("Launcher")
+        readonly property bool grid: mode.indexOf("grid") === 0
+        readonly property var matches: Array.from(DesktopEntries.applications.values).filter(function(a) {
+            return !a.noDisplay && (a.name + " " + (a.genericName || "")).toLowerCase().indexOf(query.text.toLowerCase()) >= 0
+        }).sort(function(a,b) { return a.name.localeCompare(b.name) })
         visible: root.page === "launcher"
-        anchors { top: !prefs.barBottom; bottom: prefs.barBottom; left: true }
+        anchors { top: mode === "list-left" && !prefs.barBottom; bottom: mode === "list-left" && prefs.barBottom; left: mode === "list-left" }
         margins { top: prefs.barHeight + 8; bottom: prefs.barHeight + 8; left: 12 }
-        implicitWidth: Math.min(440, screen ? screen.width - 24 : 440)
-        implicitHeight: 460
+        implicitWidth: Math.min(mode === "grid-wide" ? 760 : grid ? 600 : 440, screen ? screen.width - 24 : 760)
+        implicitHeight: grid ? 510 : 460
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         onVisibleChanged: if (visible) { query.text = ""; query.forceActiveFocus() }
+        function launch(app) { if (app) { app.execute(); root.page = "" } }
         Card {
             styleScope: "Launcher"
             anchors.fill: parent
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16
-                TextField { id: query; Layout.fillWidth: true; placeholderText: "Search applications"; color: root.foreground; Keys.onEscapePressed: root.page = ""; onAccepted: { if (apps.count > 0) { apps.model[0].execute(); root.page = "" } } }
-                ListView {
-                    id: apps
-                    Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 5
-                    model: Array.from(DesktopEntries.applications.values).filter(function(a) { return !a.noDisplay && (a.name + " " + a.genericName).toLowerCase().indexOf(query.text.toLowerCase()) >= 0 }).sort(function(a,b) { return a.name.localeCompare(b.name) })
-                    delegate: Button {
-                        required property var modelData
-                        width: ListView.view.width; height: 44
-                        onClicked: { modelData.execute(); root.page = "" }
-                        background: Rectangle { radius: 12; color: parent.hovered ? "#343854" : "#1c2033" }
-                        contentItem: RowLayout {
-                            Image { source: Quickshell.iconPath(modelData.icon || "application-x-executable"); Layout.preferredWidth: 28; Layout.preferredHeight: 28; fillMode: Image.PreserveAspectFit }
-                            Caption { text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
-                        }
+                RowLayout {
+                    Caption { text: grid ? "Applications" : "Launcher"; font.pixelSize: 20; Layout.fillWidth: true }
+                    Pill { styleScope: "Launcher"; text: "×"; onClicked: root.page = "" }
+                }
+                TextField { id: query; Layout.fillWidth: true; placeholderText: "Search applications"; color: root.foreground; Keys.onEscapePressed: root.page = ""; onAccepted: launcher.launch(launcher.matches[0]) }
+                Loader {
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    sourceComponent: launcher.grid ? gridApps : listApps
+                }
+                Caption { text: launcher.matches.length + " apps"; opacity: .7 }
+            }
+        }
+        Component {
+            id: listApps
+            ListView {
+                clip: true; spacing: 5; model: launcher.matches
+                delegate: Button {
+                    required property var modelData
+                    width: ListView.view.width; height: 44
+                    onClicked: launcher.launch(modelData)
+                    background: Rectangle { radius: root.styleFor("Launcher").radius; color: parent.hovered ? Qt.lighter(root.styleFor("Launcher").bg,1.5) : "transparent" }
+                    contentItem: RowLayout {
+                        Image { source: Quickshell.iconPath(modelData.icon || "application-x-executable"); Layout.preferredWidth: 28; Layout.preferredHeight: 28; fillMode: Image.PreserveAspectFit }
+                        Caption { text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
+                    }
+                }
+            }
+        }
+        Component {
+            id: gridApps
+            GridView {
+                id: appGrid
+                clip: true; model: launcher.matches
+                cellWidth: width / Math.max(1, Math.floor(width/110)); cellHeight: 102
+                delegate: Button {
+                    required property var modelData
+                    width: appGrid.cellWidth - 6; height: 96
+                    onClicked: launcher.launch(modelData)
+                    background: Rectangle { radius: root.styleFor("Launcher").radius; color: parent.hovered ? Qt.lighter(root.styleFor("Launcher").bg,1.6) : Qt.lighter(root.styleFor("Launcher").bg,1.2) }
+                    contentItem: ColumnLayout {
+                        Image { source: Quickshell.iconPath(modelData.icon || "application-x-executable"); Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 40; Layout.preferredHeight: 40; fillMode: Image.PreserveAspectFit }
+                        Caption { text: modelData.name; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; font.pixelSize: 11 }
                     }
                 }
             }
         }
     }
     PanelWindow {
+        id: controlWindow
+        readonly property string mode: root.layoutFor("Control Center")
         visible: root.page === "control"
         anchors { top: !prefs.barBottom; bottom: prefs.barBottom }
         margins { top: prefs.barHeight + 8; bottom: prefs.barHeight + 8 }
-        implicitWidth: Math.min(620, screen ? screen.width - 24 : 620)
-        implicitHeight: 320
+        implicitWidth: Math.min(controlWindow.mode === "compact" ? 420 : 620, screen ? screen.width - 24 : 620)
+        implicitHeight: controlWindow.mode === "tiles" ? 400 : controlWindow.mode === "compact" ? 285 : 320
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
@@ -539,12 +636,16 @@ ShellRoot {
                     value: enabled ? Pipewire.defaultAudioSink.audio.volume : 0
                     onMoved: if (enabled) Pipewire.defaultAudioSink.audio.volume = value
                 }
-                RowLayout {
+                GridLayout {
+                    columns: controlWindow.mode === "tiles" ? 2 : 3
+                    Layout.fillWidth: true
                     Pill { styleScope: "Control Center"; text: root.dnd ? "DND on" : "DND off"; onClicked: root.dnd = !root.dnd }
                     Pill { styleScope: "Control Center"; text: "Brightness −"; onClicked: Quickshell.execDetached(["brightnessctl", "set", "5%-"]) }
                     Pill { styleScope: "Control Center"; text: "Brightness +"; onClicked: Quickshell.execDetached(["brightnessctl", "set", "+5%"]) }
                 }
-                RowLayout {
+                GridLayout {
+                    columns: controlWindow.mode === "tiles" ? 2 : 3
+                    Layout.fillWidth: true
                     Pill { styleScope: "Control Center"; text: "Wallpapers"; onClicked: root.showWallpapers() }
                     Pill { styleScope: "Control Center"; text: "Notifications"; onClicked: root.toggle("notifications") }
                     Pill { styleScope: "Control Center"; text: "Lock (planned)"; enabled: false }
@@ -601,8 +702,9 @@ ShellRoot {
     }
     PanelWindow {
         id: switcher
+        readonly property bool radial: root.layoutFor("Window Switcher") === "radial"
         visible: root.page === "switcher"
-        implicitWidth: 390; implicitHeight: 390
+        implicitWidth: switcher.radial ? 390 : Math.min(screen ? screen.width - 24 : 740, Math.max(300, root.windows.length*54 + 32)); implicitHeight: switcher.radial ? 390 : 160
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Overlay
@@ -611,21 +713,21 @@ ShellRoot {
         Card {
             styleScope: "Window Switcher"
             id: ring
-            anchors.fill: parent; radius: width/2; focus: true
+            anchors.fill: parent; radius: switcher.radial ? width/2 : root.styleFor("Window Switcher").radius; focus: true
             Keys.onEscapePressed: root.page = ""
             Keys.onTabPressed: function(event) { if(root.windows.length) root.selectedWindow = (root.selectedWindow + ((event.modifiers & Qt.ShiftModifier) ? root.windows.length - 1 : 1)) % root.windows.length; event.accepted = true }
             Keys.onBacktabPressed: if(root.windows.length) root.selectedWindow = (root.selectedWindow + root.windows.length - 1) % root.windows.length
             Keys.onReturnPressed: root.confirmWindow()
             Keys.onReleased: function(event) { if(event.key === Qt.Key_Alt) root.confirmWindow() }
-            Caption { anchors.centerIn: parent; width: 130; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight; text: root.windows[root.selectedWindow] ? root.windows[root.selectedWindow].title : "No windows" }
+            Caption { anchors.horizontalCenter: parent.horizontalCenter; y: switcher.radial ? (parent.height-height)/2 : parent.height-height-12; width: switcher.radial ? 130 : parent.width-32; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight; text: root.windows[root.selectedWindow] ? root.windows[root.selectedWindow].title : "No windows" }
             Repeater {
                 model: root.windows.slice(0, 12)
                 delegate: Button {
                     required property var modelData
                     required property int index
-                    width: 48; height: 48
-                    x: ring.width/2 - width/2 + 138*Math.cos(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2)
-                    y: ring.height/2 - height/2 + 138*Math.sin(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2)
+                    width: switcher.radial ? 48 : Math.min(48,(ring.width-20)/Math.max(1,root.windows.length)-4); height: 48
+                    x: switcher.radial ? ring.width/2 - width/2 + 138*Math.cos(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2) : (ring.width - root.windows.length * Math.min(54,(ring.width-20)/Math.max(1,root.windows.length)))/2 + index * Math.min(54,(ring.width-20)/Math.max(1,root.windows.length))
+                    y: switcher.radial ? ring.height/2 - height/2 + 138*Math.sin(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2) : 24
                     onClicked: { root.selectedWindow = index; root.confirmWindow() }
                     background: Rectangle { radius: 24; color: index === root.selectedWindow ? "#3d4263" : "#22263c"; border.width: 2; border.color: index === root.selectedWindow ? root.styleFor("Window Switcher").accent : "transparent" }
                     contentItem: Image { source: root.appIcon(modelData); fillMode: Image.PreserveAspectFit; sourceSize.width: 32; sourceSize.height: 32 }
@@ -660,7 +762,7 @@ ShellRoot {
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 8
                     Caption { text: "DEYRA"; color: root.accent; font.pixelSize: 24 }
-                    Caption { text: "Shell  /  0.1.1 alpha"; opacity: .7 }
+                    Caption { text: "Shell  /  0.1.2 alpha"; opacity: .7 }
                     Repeater {
                         model: ["Themes","Edit Mode","Community","Profile","System","Performance","Updates"]
                         delegate: Pill { required property string modelData; Layout.fillWidth: true; text: modelData; highlighted: root.settingsTab === modelData; onClicked: root.settingsTab = modelData }
@@ -732,7 +834,7 @@ ShellRoot {
                     }
                     Pill { text: "Use global"; visible: root.presetScope !== "All"; onClicked: root.resetComponent(root.presetScope) }
                 }
-                Caption { text: "Selected: " + root.componentPreview(root.presetScope); color: root.accent }
+                Caption { text: "Selected: " + root.componentPreview(root.presetScope) + (root.presetScope === "All" ? "" : " · " + root.layoutFor(root.presetScope)); color: root.accent }
                 GridView {
                     id: presetGrid
                     Layout.fillWidth: true; Layout.fillHeight: true
@@ -764,7 +866,7 @@ ShellRoot {
                                 }
                             }
                             Caption { text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
-                            Caption { text: modelData.author; opacity: .7; font.pixelSize: 10; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Caption { text: modelData.author + " · " + root.layoutProfiles[modelData.name][0]; opacity: .7; font.pixelSize: 10; Layout.fillWidth: true; elide: Text.ElideRight }
                             RowLayout {
                                 Pill { text: "Apply"; Layout.fillWidth: true; onClicked: root.applyPreset(modelData, root.presetScope) }
                                 Pill { text: "Source"; onClicked: Qt.openUrlExternally(modelData.url) }
@@ -772,7 +874,7 @@ ShellRoot {
                         }
                     }
                 }
-                Caption { text: "Deyra-made adaptations, not original shell installations."; opacity: .7; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Caption { text: "Native layouts + styles, not full upstream ports."; opacity: .7; Layout.fillWidth: true; wrapMode: Text.Wrap }
             }
         }
         Component {
@@ -885,6 +987,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.1.1 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.1.2 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
