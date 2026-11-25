@@ -55,9 +55,9 @@ ShellRoot {
         else if (isHyprland && ws.id > 0) Quickshell.execDetached(["hyprctl","dispatch","workspace",String(ws.id)])
     }
     // The manual theme stays stored independently of the generated Material palette.
-    readonly property bool dynamicColors: prefs.matugenEnabled && !!prefs.matugenPalette.primary
+    readonly property bool dynamicColors: prefs.matugenEnabled && !!(prefs.matugenPalette || {}).primary
     function paletteColor(key, fallback) {
-        const value = prefs.matugenPalette[key]
+        const value = (prefs.matugenPalette || {})[key]
         return dynamicColors && typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback
     }
     property color accent: paletteColor("primary", prefs.accent)
@@ -1001,7 +1001,7 @@ ShellRoot {
         if (!path.startsWith("/")) { matugenStatus = "Matugen requires a local wallpaper"; return }
         requestedWallpaper = url
         matugenStatus = "Generating wallpaper colors…"
-        matugenProcess.command = ["matugen","-c",Quickshell.shellPath("matugen/config.toml"),"image",path,"-m","dark","--dry-run","--json","hex"]
+        matugenProcess.command = ["sh","-c","command -v matugen >/dev/null 2>&1 || exit 127; exec matugen \"$@\"", "deyra-matugen", "-c",Quickshell.shellPath("matugen/config.toml"),"image",path,"-m","dark","--dry-run","--json","hex"]
         matugenProcess.running = true
     }
     // Supports both mode-first JSON and role-first Matugen output.
