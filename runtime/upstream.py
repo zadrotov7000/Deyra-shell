@@ -4,6 +4,7 @@ import os
 import sys
 import shutil
 from pathlib import Path
+import manager
 
 home = Path.home()
 config = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
@@ -34,22 +35,25 @@ def check(name):
     compositor = "niri" if os.environ.get("NIRI_SOCKET") else "hyprland" if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") else ""
     if compositor not in compositors:
         raise RuntimeError("Requires " + " or ".join(compositors) + "; current compositor: " + (compositor or "unknown"))
+    managed = manager.runtime(name)
+    if managed:
+        return managed[0], managed[1]
     missing = [item for item in [cmd[0], *extra] if not shutil.which(item)]
     if missing:
         raise RuntimeError("Install the original shell first. Missing: " + ", ".join(missing))
     if required and not required.is_file():
         raise RuntimeError("Original installed configuration not found: " + str(required))
-    return cmd
+    return cmd, dict(os.environ)
 
 def main():
     if len(sys.argv) != 3 or sys.argv[1] not in ("check", "run"):
         raise RuntimeError("Usage: upstream.py check|run NAME")
-    cmd = check(sys.argv[2])
+    cmd, env = check(sys.argv[2])
     if sys.argv[1] == "check":
         print("Original runtime found: " + " ".join(cmd), flush=True)
     else:
         print("Starting original runtime: " + " ".join(cmd), flush=True)
-        os.execvp(cmd[0], cmd)
+        os.execvpe(cmd[0], cmd, env)
 
 if __name__ == "__main__":
     try:
