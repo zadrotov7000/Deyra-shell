@@ -19,7 +19,7 @@ ShellRoot {
     property real tipX: 0
     function showBarTip(owner, output, label) {
         if (!owner || !label || page !== "") return
-        const screen = Quickshell.screens.find(function(s){return s.name === output})
+        const screen = Array.from(Quickshell.screens).find(function(s){return s.name === output})
         if (!screen) return
         tipScreen = screen
         tipX = owner.mapToItem(null,owner.width/2,0).x
@@ -713,7 +713,7 @@ ShellRoot {
         configFile.writeAdapter()
     }
     function componentPreview(scope) { return scope === "All" ? prefs.activePreset : styleFor(scope).name }
-    function presetSelected(name, scope) { return componentPreview(scope) === name && (scope !== "All" || !supportedScopes.some(function(k){return !!prefs.componentStyles[k] && prefs.componentStyles[k].name !== name})) }
+    function presetSelected(name, scope) { return componentPreview(scope) === name && (scope !== "All" || !supportedScopes.some(function(k){return !!(prefs.componentStyles || {})[k] && prefs.componentStyles[k].name !== name})) }
     function portDescription(name, scope) {
         if (name === "TQQ Rice") {
             if (scope === "Launcher" || scope === "Window Switcher" || scope === "Control Center") return scope === "Window Switcher" && !isNiri ? "Deyra fallback on Hyprland" : "Original QML port"
