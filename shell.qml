@@ -828,29 +828,32 @@ ShellRoot {
 
     function originalTqq(scope) { return prefs.useOriginalPorts && styleFor(scope).name === "TQQ Rice" }
     function portPath(name) { return Quickshell.shellPath("ports/tqq/" + name + "/shell.qml") }
+    property bool stoppingOriginalLauncher: false
+    property bool stoppingOriginalSwitcher: false
+    property bool stoppingOriginalWifi: false
     function openOriginalWifi() {
-        if (originalWifi.running) { originalWifi.running = false; return }
+        if (originalWifi.running) { stoppingOriginalWifi = true; originalWifi.running = false; return }
         page = ""
         originalWifi.running = true
     }
     Process {
         id: originalLauncher
         command: ["qs","-p",root.portPath("launcher")]
-        onExited: function(code) { if(code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ launcher failed ("+code+"); using native fallback."; root.page = "launcher" } }
+        onExited: function(code) { const stopped = root.stoppingOriginalLauncher; root.stoppingOriginalLauncher = false; if(!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ launcher failed ("+code+"); using native fallback."; root.page = "launcher" } }
     }
     Process {
         id: originalSwitcher
         command: ["qs","-p",root.portPath("switcher")]
-        onExited: function(code) { if(code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ switcher failed ("+code+"); using native fallback."; root.page = "switcher" } }
+        onExited: function(code) { const stopped = root.stoppingOriginalSwitcher; root.stoppingOriginalSwitcher = false; if(!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ switcher failed ("+code+"); using native fallback."; root.page = "switcher" } }
     }
     Process {
         id: originalWifi
         command: ["qs","-p",root.portPath("wifi")]
-        onExited: function(code) { if(code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ Wi-Fi failed ("+code+"). Check NetworkManager."; root.page = "control" } }
+        onExited: function(code) { const stopped = root.stoppingOriginalWifi; root.stoppingOriginalWifi = false; if(!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ Wi-Fi failed ("+code+"). Check NetworkManager."; root.page = "control" } }
     }
     function toggle(name) {
         if (name === "launcher" && originalTqq("Launcher")) {
-            if (originalLauncher.running) { originalLauncher.running = false; return }
+            if (originalLauncher.running) { stoppingOriginalLauncher = true; originalLauncher.running = false; return }
             page = ""
             originalLauncher.running = true
             return
@@ -1065,7 +1068,7 @@ ShellRoot {
         function notifications(): void { root.toggle("notifications") }
         function switcher(): void { root.cycleWindow() }
         function confirm(): void { root.confirmWindow() }
-        function close(): void { root.page = ""; if(originalLauncher.running) originalLauncher.running = false; if(originalSwitcher.running) originalSwitcher.running = false; if(originalWifi.running) originalWifi.running = false }
+        function close(): void { root.page = ""; if(originalLauncher.running) { root.stoppingOriginalLauncher = true; originalLauncher.running = false } if(originalSwitcher.running) { root.stoppingOriginalSwitcher = true; originalSwitcher.running = false } if(originalWifi.running) { root.stoppingOriginalWifi = true; originalWifi.running = false } }
     }
 
     // Shared visual primitives. Only event-driven animations, no continuous shaders.
