@@ -641,6 +641,14 @@ ShellRoot {
     property string loadText: ""
     property string mediaText: ""
     property string brightnessText: ""
+    function applySwitcherSource(name) {
+        // iNiR defaults/config.json: right alignment, 200 ms duration, animation disabled.
+        // Other profiles retain Deyra defaults unless explicitly customized.
+        prefs.switcherCompact = false
+        prefs.switcherAlign = name === "iNiR" ? "right" : "center"
+        prefs.switcherDuration = 200
+        prefs.switcherAnimated = name !== "iNiR"
+    }
     function activeTitle() {
         const focused = windows.find(function(w){return w.activated})
         return focused ? focused.title : ""
@@ -662,11 +670,13 @@ ShellRoot {
             prefs.activePreset = preset.name
             prefs.componentStyles = ({})
             applySourceBar(preset.name)
+            applySwitcherSource(preset.name)
         } else if (supportedScopes.indexOf(scope) >= 0) {
             const next = Object.assign({}, prefs.componentStyles)
             next[scope] = {name: preset.name, accent: preset.accent, bg: preset.bg, opacity: preset.opacity, radius: preset.radius}
             prefs.componentStyles = next
             if (scope === "Bar") applySourceBar(preset.name)
+            if (scope === "Window Switcher") applySwitcherSource(preset.name)
         } else return
         status = preset.name + " applied to " + scope
     }
@@ -674,6 +684,8 @@ ShellRoot {
         const next = Object.assign({}, prefs.componentStyles)
         delete next[scope]
         prefs.componentStyles = next
+        if (scope === "Bar") applySourceBar(prefs.activePreset)
+        if (scope === "Window Switcher") applySwitcherSource(prefs.activePreset)
         status = scope + " now follows global appearance"
     }
     function componentPreview(scope) { return scope === "All" ? prefs.activePreset : styleFor(scope).name }
@@ -868,6 +880,10 @@ ShellRoot {
             property string workspaceFace: "source"
             property bool clock12h: false
             property bool barFrame: false
+            property bool switcherCompact: false
+            property int switcherDuration: 200
+            property bool switcherAnimated: true
+            property string switcherAlign: "center"
             property bool barBottom: false
             property bool dockEnabled: true
             property bool desktopClock: false
@@ -1175,7 +1191,8 @@ ShellRoot {
         property string moduleKey: ""
         property string outputName: ""
         readonly property bool available: moduleKey === "volume" ? prefs.showAudio : moduleKey === "notifications" ? prefs.showNotifications : moduleKey === "battery" ? root.batteryText !== "" : moduleKey === "media" ? root.mediaText !== "" : moduleKey === "brightness" ? root.brightnessText !== "" : moduleKey === "title" ? root.activeTitle() !== "" : true
-        implicitWidth: available && moduleLoader.item ? (moduleKey === "title" ? Math.min(146,moduleLoader.item.contentWidth) : moduleLoader.item.implicitWidth) : 0
+        implicitWidth: available && moduleLoader.item ? (moduleKey === "title" ? Math.min(146,titleMetrics.advanceWidth(root.activeTitle())) : moduleLoader.item.implicitWidth) : 0
+        FontMetrics { id: titleMetrics; font.family: "sans-serif"; font.pixelSize: 13 }
         implicitHeight: Math.min(32, Math.max(20,prefs.barHeight-4))
         width: implicitWidth; height: implicitHeight
         visible: available && width > 0
@@ -1189,7 +1206,6 @@ ShellRoot {
             id: titleModule
             Caption {
                 deyraTextScope: "Bar"
-                width: Math.min(146, contentWidth)
                 text: root.activeTitle()
                 elide: Text.ElideRight
                 verticalAlignment: Text.AlignVCenter
@@ -1597,9 +1613,12 @@ ShellRoot {
         readonly property bool radial: root.layoutFor("Window Switcher") === "radial"
         readonly property bool expanded: root.page === "switcher"
         property real reveal: expanded ? 1 : 0
-        Behavior on reveal { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
+        Behavior on reveal { NumberAnimation { duration: prefs.reduceMotion || !prefs.switcherAnimated ? 0 : prefs.switcherDuration; easing.type: Easing.OutCubic } }
         visible: expanded || reveal > .001
-        implicitWidth: switcher.radial ? 390 : Math.min(screen ? screen.width - 24 : 740, Math.max(300, root.windows.length*54 + 32)); implicitHeight: switcher.radial ? 390 : 160
+        anchors { right: prefs.switcherAlign === "right"; left: prefs.switcherAlign === "left" }
+        margins { right: 24; left: 24 }
+        implicitWidth: switcher.radial ? (prefs.switcherCompact ? 300 : 390) : Math.min(screen ? screen.width - 24 : 740, Math.max(260, root.windows.length*54 + 32))
+        implicitHeight: switcher.radial ? implicitWidth : prefs.switcherCompact ? 110 : 160
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Overlay
@@ -1617,15 +1636,15 @@ ShellRoot {
             Keys.onBacktabPressed: if(root.windows.length) root.selectedWindow = (root.selectedWindow + root.windows.length - 1) % root.windows.length
             Keys.onReturnPressed: root.confirmWindow()
             Keys.onReleased: function(event) { if(event.key === Qt.Key_Alt) root.confirmWindow() }
-            Caption { deyraTextScope: "Window Switcher"; anchors.horizontalCenter: parent.horizontalCenter; y: switcher.radial ? (parent.height-height)/2 : parent.height-height-12; width: switcher.radial ? 130 : parent.width-32; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight; text: root.windows[root.selectedWindow] ? root.windows[root.selectedWindow].title : "No windows" }
+            Caption { deyraTextScope: "Window Switcher"; anchors.horizontalCenter: parent.horizontalCenter; y: switcher.radial ? (parent.height-height)/2 : parent.height-height-10; width: switcher.radial ? 130 : parent.width-32; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight; text: root.windows[root.selectedWindow] ? root.windows[root.selectedWindow].title : "No windows" }
             Repeater {
                 model: root.windows.slice(0, 12)
                 delegate: Button {
                     required property var modelData
                     required property int index
                     width: switcher.radial ? 48 : Math.min(48,(ring.width-20)/Math.max(1,root.windows.length)-4); height: 48
-                    x: switcher.radial ? ring.width/2 - width/2 + 138*Math.cos(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2) : (ring.width - root.windows.length * Math.min(54,(ring.width-20)/Math.max(1,root.windows.length)))/2 + index * Math.min(54,(ring.width-20)/Math.max(1,root.windows.length))
-                    y: switcher.radial ? ring.height/2 - height/2 + 138*Math.sin(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2) : 24
+                    x: switcher.radial ? ring.width/2 - width/2 + (ring.width/2-56)*Math.cos(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2) : (ring.width - root.windows.length * Math.min(54,(ring.width-20)/Math.max(1,root.windows.length)))/2 + index * Math.min(54,(ring.width-20)/Math.max(1,root.windows.length))
+                    y: switcher.radial ? ring.height/2 - height/2 + (ring.height/2-56)*Math.sin(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2) : (prefs.switcherCompact ? 10 : 24)
                     onClicked: { root.selectedWindow = index; root.confirmWindow() }
                     background: Rectangle { radius: 24; color: index === root.selectedWindow ? "#3d4263" : "#22263c"; border.width: 2; border.color: index === root.selectedWindow ? root.styleFor("Window Switcher").accent : "transparent" }
                     contentItem: AppGlyph { imageSource: root.appIcon(modelData); fallbackText: modelData.title || modelData.appId || "?" }
@@ -1854,7 +1873,7 @@ ShellRoot {
                 }
                 Loader {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    sourceComponent: root.editTab === "Presets" ? presetsPage : root.editTab === "Wallpapers" ? wallpapersPage : root.editTab === "Bar" ? barPage : root.editTab === "Dock" ? dockPage : root.editTab === "Desktop Widgets" ? widgetsPage : root.editTab === "Notifications" ? notificationsPage : pendingPage
+                    sourceComponent: root.editTab === "Presets" ? presetsPage : root.editTab === "Wallpapers" ? wallpapersPage : root.editTab === "Bar" ? barPage : root.editTab === "Dock" ? dockPage : root.editTab === "Desktop Widgets" ? widgetsPage : root.editTab === "Notifications" ? notificationsPage : root.editTab === "Window Switcher" ? switcherPage : pendingPage
                 }
             }
         }
@@ -2026,6 +2045,24 @@ ShellRoot {
         Component { id: dockPage; Section { DeyraCheck { text: "Show running applications dock"; checked: prefs.dockEnabled; onToggled: prefs.dockEnabled = checked } Item { Layout.fillHeight: true } } }
         Component { id: widgetsPage; Section { DeyraCheck { text: "Desktop clock"; checked: prefs.desktopClock; onToggled: prefs.desktopClock = checked } Item { Layout.fillHeight: true } } }
         Component { id: notificationsPage; Section { DeyraCheck { text: "Do not disturb"; checked: root.dnd; onToggled: root.dnd = checked } Item { Layout.fillHeight: true } } }
+        Component {
+            id: switcherPage
+            Section {
+                Caption { text: "Window switcher"; font.pixelSize: 18; font.weight: Font.DemiBold }
+                Muted { text: "Alignment, compact mode and motion controls adapted from iNiR's altSwitcher configuration."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Caption { text: "Alignment"; Layout.fillWidth: true }
+                    DeyraCombo { model: ["left","center","right"]; currentIndex: Math.max(0,model.indexOf(prefs.switcherAlign)); onActivated: prefs.switcherAlign = currentText; Layout.preferredWidth: 160 }
+                }
+                DeyraCheck { Layout.fillWidth: true; text: "Compact layout"; checked: prefs.switcherCompact; onToggled: prefs.switcherCompact = checked }
+                DeyraCheck { Layout.fillWidth: true; text: "Animate opening and closing"; checked: prefs.switcherAnimated; onToggled: prefs.switcherAnimated = checked }
+                RowLayout { Caption { text: "Transition duration"; Layout.fillWidth: true } Muted { text: prefs.switcherDuration+" ms" } }
+                DeyraSlider { Layout.fillWidth: true; from: 0; to: 450; stepSize: 10; value: prefs.switcherDuration; onMoved: prefs.switcherDuration = value }
+                Pill { text: "Use source defaults"; onClicked: root.applySwitcherSource(root.styleFor("Window Switcher").name) }
+                Item { Layout.fillHeight: true }
+            }
+        }
         Component { id: pendingPage; Section { Caption { text: root.editTab + " customization is planned for a later alpha." } Item { Layout.fillHeight: true } } }
         Component {
             id: wallpapersPage
