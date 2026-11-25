@@ -2,7 +2,7 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.2.4 alpha — single-window settings and embedded editors. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.2.5 alpha — first actual upstream QML ports. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
@@ -18,6 +18,22 @@ qs -c deyra
 Run in a terminal for the first smoke test; Ctrl+C stops the shell. The installer copies only the shell configuration to the user's XDG configuration directory and backs up any previous Deyra shell file. It does not install/remove packages or modify Niri, Hyprland, TQQ, or your existing desktop configuration. It creates the settings directory before startup.
 
 Before testing, temporarily stop other panels, wallpaper renderers and notification daemons using their own documented controls if you want to avoid conflicts. In particular, only one notification daemon may own the desktop notification D-Bus name. Do not remove the existing desktop or lock screen.
+
+## Version 0.2.5 — actual upstream code
+
+The first source ports are included in `ports/` and installed alongside Deyra. These are distinct from the older native layout approximations.
+
+| Original source | Included file | Integration |
+| --- | --- | --- |
+| [TQQ launcher](https://github.com/zadrotov7000/TQQ-Niri-rice/blob/main/quickshell/tqq-launcher/shell.qml) | `ports/tqq/launcher/shell.qml` | Original, unmodified launcher when the TQQ Launcher preset is selected |
+| [TQQ switcher](https://github.com/zadrotov7000/TQQ-Niri-rice/blob/main/quickshell/tqq-switcher/shell.qml) | `ports/tqq/switcher/shell.qml` | Original Niri radial switcher; Hyprland retains Deyra fallback |
+| [TQQ Wi-Fi](https://github.com/zadrotov7000/TQQ-Niri-rice/blob/main/quickshell/tqq-wifi/shell.qml) | `ports/tqq/wifi/shell.qml` | Original NetworkManager panel, opened from TQQ bar network button |
+| [Dux DesktopClock](https://github.com/duxlabs-dev/dux-shell/blob/master/quickshell/PLUGINS/ExampleDesktopClock/DesktopClock.qml) | `ports/dux/DesktopClock.qml` | Original analog/digital clock geometry, adapted plugin/theme properties |
+| [DarkShadow WavyLine](https://github.com/shadowww-dev/DarkShadowShell/blob/main/quickshell/rice-desktop/WavyLine.qml) | `ports/darkshadow/WavyLine.qml` | Original wave drawing and seeking behavior in DarkShadow Control Center volume slider |
+
+Original licenses are included next to each port (TQQ GPLv3, Dux MIT, DarkShadow MIT). The two MIT files record their original blob hashes and modifications. TQQ panels execute as separate Quickshell processes so their original Qt.quit() does not stop the main Deyra shell. They can read existing TQQ palette data, but Deyra does not install or edit TQQ. Wi-Fi requires NetworkManager. All settings remain in one Deyra Settings window. **System → Use imported original components** switches between these ports and Deyra's native approximations. Desktop Widgets allows explicit selection of the Dux clock.
+
+Only these five components are actual source ports in this release. The remaining nine project profiles and other parts of these three projects are still partial/native adaptations, not full upstream components. In particular, Dynamic Island and full Dux shell have additional service dependencies; original configs cannot be substituted blindly. Runtime tests remain pending.
 
 ## Version 0.2.4 — one settings window
 
