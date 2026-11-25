@@ -20,6 +20,37 @@ ShellRoot {
     property int selectedWindow: 0
     property var windows: Array.from(ToplevelManager.toplevels.values).slice(0, 12)
     property var now: new Date()
+    readonly property bool isNiri: !!Quickshell.env("NIRI_SOCKET")
+    readonly property bool isHyprland: !isNiri && !!Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")
+    property var workspaces: []
+    property string networkLabel: ""
+    property string networkKind: "offline"
+    function workspacesFor(output) {
+        const rows = workspaces.filter(function(w) { return !output || w.output === output })
+        return rows.sort(function(a,b) { return a.idx-b.idx }).slice(0, 9)
+    }
+    function niriEvent(line) {
+        try {
+            const event = JSON.parse(line)
+            if (event.WorkspacesChanged) workspaces = event.WorkspacesChanged.workspaces || []
+            else if (event.WorkspaceActivated) {
+                const e = event.WorkspaceActivated
+                const target = workspaces.find(function(w) { return w.id === e.id })
+                if (!target) return
+                workspaces = workspaces.map(function(w) {
+                    const copy = Object.assign({},w)
+                    if (w.output === target.output) copy.is_active = w.id === e.id
+                    if (e.focused) copy.is_focused = w.id === e.id
+                    return copy
+                })
+            }
+        } catch(e) { /* Ignore non-JSON diagnostics. */ }
+    }
+    function activateWorkspace(ws) {
+        if (!ws || !Number.isInteger(ws.id)) return
+        if (isNiri) Quickshell.execDetached(["niri","msg","raw-request",JSON.stringify({Action:{FocusWorkspace:{reference:{Id:ws.id}}}})])
+        else if (isHyprland && ws.id > 0) Quickshell.execDetached(["hyprctl","dispatch","workspace",String(ws.id)])
+    }
     property color accent: prefs.accent
     property color surface: Qt.alpha(prefs.background, prefs.opacity)
     property color foreground: "#e9eaf0"
@@ -365,7 +396,46 @@ ShellRoot {
         download.running = true
     }
 
-    Timer { interval: 1000; running: true; repeat: true; onTriggered: root.now = new Date() }
+    Timer { interval: 1000; running: true; repeat: true; onTriggered: { const date = new Date(); if (date.getMinutes() !== root.now.getMinutes() || date.getHours() !== root.now.getHours()) root.now = date } }
+    Process {
+        id: niriEvents
+        command: ["niri","msg","--json","event-stream"]
+        running: root.isNiri
+        stdout: SplitParser { onRead: function(line) { root.niriEvent(line) } }
+        onExited: if (root.isNiri) niriRetry.restart()
+    }
+    Timer { id: niriRetry; interval: 3000; onTriggered: if (root.isNiri && !niriEvents.running) niriEvents.running = true }
+    Process {
+        id: hyprSnapshot
+        command: ["sh","-c","hyprctl -j monitors; printf '\\n--DEYRA--\\n'; hyprctl -j workspaces"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const parts = text.split("--DEYRA--")
+                    const monitors = JSON.parse(parts[0]), rows = JSON.parse(parts[1])
+                    root.workspaces = rows.filter(function(w) {return w.id > 0}).map(function(w) {
+                        const monitor = monitors.find(function(m) {return m.name === w.monitor})
+                        return {id:w.id, idx:w.id, output:w.monitor, is_active:!!monitor && monitor.activeWorkspace.id === w.id}
+                    })
+                } catch(e) {}
+            }
+        }
+    }
+    Timer { interval: 2000; running: root.isHyprland; repeat: true; triggeredOnStart: true; onTriggered: if (!hyprSnapshot.running) hyprSnapshot.running = true }
+    Process {
+        id: networkStatus
+        command: ["sh","-c","if command -v nmcli >/dev/null 2>&1; then nmcli -t -f TYPE,STATE,CONNECTION device status; fi"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const lines = text.split("\n")
+                const wifi = lines.find(function(l) {return l.indexOf("wifi:connected:") === 0})
+                const eth = lines.find(function(l) {return l.indexOf("ethernet:connected:") === 0})
+                root.networkKind = wifi ? "wifi" : eth ? "wired" : "offline"
+                root.networkLabel = wifi ? wifi.slice("wifi:connected:".length) : eth ? eth.slice("ethernet:connected:".length) : "Not connected"
+            }
+        }
+    }
+    Timer { interval: 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!networkStatus.running) networkStatus.running = true }
     FileView {
         id: configFile
         path: root.statePath + "/settings.json"
@@ -573,6 +643,72 @@ ShellRoot {
         contentItem: Caption { text: toggleControl.text; rightPadding: 52; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
     }
     component Section: ColumnLayout { spacing: 14 }
+    // Vector icons painted only on icon/color changes; no extra icon font dependency.
+    component ShellIcon: Canvas {
+        id: symbol
+        property string glyph: "search"
+        property color ink: root.foreground
+        implicitWidth: 18; implicitHeight: 18
+        onGlyphChanged: requestPaint()
+        onInkChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onPaint: {
+            const c = getContext("2d")
+            c.reset(); c.clearRect(0,0,width,height); c.save(); c.scale(width/24,height/24)
+            c.strokeStyle = ink; c.fillStyle = ink; c.lineWidth = 1.8; c.lineCap = "round"; c.lineJoin = "round"
+            function path(points) { c.beginPath(); c.moveTo(points[0],points[1]); for(let i=2;i<points.length;i+=2)c.lineTo(points[i],points[i+1]); c.stroke() }
+            function circle(x,y,r) { c.beginPath(); c.arc(x,y,r,0,2*Math.PI); c.stroke() }
+            switch(glyph) {
+            case "search": circle(10,10,5.5); path([14,14,20,20]); break
+            case "settings":
+                circle(12,12,3.4); circle(12,12,7.2)
+                for(let i=0;i<8;i++) {const a=i*Math.PI/4; path([12+7.5*Math.cos(a),12+7.5*Math.sin(a),12+10*Math.cos(a),12+10*Math.sin(a)])} break
+            case "bell": path([5,17,7,14,7,9,9,5,15,5,17,9,17,14,19,17,5,17]); path([10,20,14,20]); break
+            case "audio": path([4,9,8,9,13,5,13,19,8,15,4,15,4,9]); c.beginPath();c.arc(12,12,5,-.8,.8);c.stroke();c.beginPath();c.arc(12,12,8,-.8,.8);c.stroke();break
+            case "wifi": for(let r=5;r<=11;r+=3){c.beginPath();c.arc(12,17,r,-2.38,-.76);c.stroke()} c.beginPath();c.arc(12,18,1.2,0,2*Math.PI);c.fill();break
+            case "wired": c.strokeRect(5,5,14,10);path([12,15,12,20,7,20]);break
+            case "offline": circle(12,12,8);path([6,6,18,18]);break
+            default: c.strokeRect(5,5,14,14);break
+            }
+            c.restore()
+        }
+    }
+    component BarIconButton: Button {
+        id: iconButton
+        property string glyph: "search"
+        property string label: ""
+        property string detail: ""
+        implicitWidth: iconRow.implicitWidth + 20
+        implicitHeight: 32
+        padding: 10
+        contentItem: Row {
+            id: iconRow
+            spacing: 6
+            ShellIcon { glyph: iconButton.glyph; width: 17; height: 17; anchors.verticalCenter: parent.verticalCenter; ink: root.contrastingText(root.styleFor("Bar").bg) }
+            Caption { visible: iconButton.label !== ""; text: iconButton.label; deyraTextScope: "Bar"; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 12; font.weight: Font.Medium }
+        }
+        background: Rectangle {
+            color: iconButton.hovered ? root.tint(root.styleFor("Bar").bg,.14) : root.layoutFor("Bar") === "islands" ? Qt.alpha(root.styleFor("Bar").bg,root.styleFor("Bar").opacity) : "transparent"
+            radius: Math.min(root.styleFor("Bar").radius,16)
+            Behavior on color { ColorAnimation { duration: root.motion/2 } }
+        }
+        ToolTip.visible: hovered && detail !== ""
+        ToolTip.text: detail
+    }
+    component AppGlyph: Item {
+        id: appGlyph
+        property url imageSource: ""
+        property string fallbackText: "?"
+        implicitWidth: 32; implicitHeight: 32
+        Rectangle {
+            anchors.fill: parent
+            visible: image.status !== Image.Ready
+            radius: 8; color: root.uiRaised
+            Caption { anchors.centerIn: parent; text: appGlyph.fallbackText.trim().slice(0,1).toUpperCase() || "?"; font.pixelSize: 17; font.weight: Font.DemiBold; color: root.accent }
+        }
+        Image { id: image; anchors.fill: parent; source: appGlyph.imageSource; fillMode: Image.PreserveAspectFit; asynchronous: true; sourceSize.width: Math.max(1,width); sourceSize.height: Math.max(1,height) }
+    }
     component BarPill: Pill {
         styleScope: "Bar"; deyraFlat: root.layoutFor("Bar") !== "islands"
         implicitHeight: 32
@@ -638,8 +774,31 @@ ShellRoot {
                     id: leftBar
                     anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
                     spacing: 5
-                    BarPill { text: "⌕"; deyraSelected: true; onClicked: root.toggle("launcher") }
-                    BarPill { visible: barArea.mode !== "minimal" && barArea.mode !== "dynamic"; text: "Deyra"; onClicked: root.toggle("settings") }
+                    BarIconButton { glyph: "search"; detail: "Applications"; onClicked: root.toggle("launcher") }
+                    Card {
+                        visible: workspaceRow.count > 0 && barArea.mode !== "minimal"
+                        styleScope: "Bar"
+                        height: 32; width: workspaceLayout.implicitWidth+16
+                        border.width: 0
+                        Row {
+                            id: workspaceLayout
+                            anchors.centerIn: parent; spacing: 6
+                            Repeater {
+                                id: workspaceRow
+                                model: root.workspacesFor(barWindow.screen ? barWindow.screen.name : "")
+                                delegate: Rectangle {
+                                    id: workspaceDot
+                                    required property var modelData
+                                    width: modelData.is_active ? 27 : 9
+                                    height: 9; radius: 5
+                                    color: modelData.is_active ? root.styleFor("Bar").accent : root.tint(root.styleFor("Bar").bg,.28)
+                                    Behavior on width { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
+                                    Behavior on color { ColorAnimation { duration: root.motion } }
+                                    MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.activateWorkspace(workspaceDot.modelData) }
+                                }
+                            }
+                        }
+                    }
                     Caption { visible: barArea.mode === "minimal"; anchors.verticalCenter: parent.verticalCenter; width: Math.min(170, barArea.width/5); elide: Text.ElideRight; text: root.windows.length ? root.windows[0].title : "Desktop" }
                 }
                 Card {
@@ -663,9 +822,10 @@ ShellRoot {
                     id: rightBar
                     anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
                     spacing: 5
-                    BarPill { visible: prefs.showAudio && barArea.mode !== "minimal"; text: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? "Vol " + Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : "Audio"; onClicked: root.toggle("control") }
-                    BarPill { visible: prefs.showNotifications && barArea.mode !== "minimal"; text: "Alerts " + notifications.trackedNotifications.values.length; onClicked: root.toggle("notifications") }
-                    BarPill { text: "⚙"; onClicked: root.toggle("settings") }
+                    BarIconButton { visible: barArea.mode !== "minimal"; glyph: root.networkKind; detail: root.networkLabel; onClicked: root.toggle("control") }
+                    BarIconButton { visible: prefs.showAudio && barArea.mode !== "minimal"; glyph: "audio"; label: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : ""; detail: "Volume"; onClicked: root.toggle("control") }
+                    BarIconButton { visible: prefs.showNotifications && barArea.mode !== "minimal"; glyph: "bell"; label: notifications.trackedNotifications.values.length > 0 ? String(notifications.trackedNotifications.values.length) : ""; detail: "Notifications"; onClicked: root.toggle("notifications") }
+                    BarIconButton { glyph: "settings"; detail: "Deyra Settings"; onClicked: root.toggle("settings") }
                 }
             }
         }
@@ -686,16 +846,26 @@ ShellRoot {
                 id: dockRow
                 anchors.centerIn: parent
                 spacing: 6
-                Pill { styleScope: "Dock"; text: "⌕"; onClicked: root.toggle("launcher") }
+                Button {
+                    width: 42; height: 42; onClicked: root.toggle("launcher")
+                    background: Rectangle { radius: 12; color: parent.hovered ? root.tint(root.styleFor("Dock").bg,.15) : "transparent"; Behavior on color { ColorAnimation { duration: root.motion/2 } } }
+                    contentItem: Item { ShellIcon { anchors.centerIn: parent; width: 21; height: 21; glyph: "search"; ink: root.styleFor("Dock").accent } }
+                    ToolTip.visible: hovered; ToolTip.text: "Applications"
+                }
                 Repeater {
                     model: root.windows.slice(0, Math.max(1, Math.min(12, Math.floor(((dockWindow.screen ? dockWindow.screen.width : 700)-80)/(dockWindow.labeled ? 84 : 48)))))
                     delegate: Button {
+                        id: dockEntry
                         required property var modelData
                         width: dockWindow.labeled ? 78 : 42; height: dockWindow.labeled ? 60 : 42
                         onClicked: modelData.activate()
-                        background: Rectangle { radius: 12; color: parent.hovered ? "#343854" : "transparent"; border.width: modelData.activated ? 1 : 0; border.color: root.styleFor("Dock").accent }
+                        background: Rectangle {
+                            radius: 12; color: parent.hovered ? root.tint(root.styleFor("Dock").bg,.14) : "transparent"
+                            Behavior on color { ColorAnimation { duration: root.motion/2 } }
+                            Rectangle { anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 1 }; width: modelData.activated ? 16 : 4; height: 3; radius: 2; color: modelData.activated ? root.styleFor("Dock").accent : root.uiMuted; Behavior on width { NumberAnimation { duration: root.motion } } }
+                        }
                         contentItem: ColumnLayout {
-                            Image { source: root.appIcon(modelData); fillMode: Image.PreserveAspectFit; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 30; Layout.preferredHeight: 30 }
+                            AppGlyph { imageSource: root.appIcon(modelData); fallbackText: modelData.title || modelData.appId || "?"; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 30; Layout.preferredHeight: 30; scale: dockEntry.hovered && !prefs.reduceMotion ? 1.13 : 1; Behavior on scale { NumberAnimation { duration: root.motion/2; easing.type: Easing.OutCubic } } }
                             Caption { deyraTextScope: "Dock"; visible: dockWindow.labeled; text: modelData.title; Layout.fillWidth: true; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 10 }
                         }
                         ToolTip.visible: hovered
@@ -757,7 +927,7 @@ ShellRoot {
                     onClicked: launcher.launch(modelData)
                     background: Rectangle { radius: root.styleFor("Launcher").radius; color: parent.hovered ? Qt.lighter(root.styleFor("Launcher").bg,1.5) : "transparent" }
                     contentItem: RowLayout {
-                        Image { source: root.safeIcon(modelData.icon); Layout.preferredWidth: 28; Layout.preferredHeight: 28; fillMode: Image.PreserveAspectFit }
+                        AppGlyph { imageSource: root.safeIcon(modelData.icon); fallbackText: modelData.name; Layout.preferredWidth: 28; Layout.preferredHeight: 28 }
                         Caption { deyraTextScope: "Launcher"; text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
                     }
                 }
@@ -775,7 +945,7 @@ ShellRoot {
                     onClicked: launcher.launch(modelData)
                     background: Rectangle { radius: root.styleFor("Launcher").radius; color: parent.hovered ? Qt.lighter(root.styleFor("Launcher").bg,1.6) : Qt.lighter(root.styleFor("Launcher").bg,1.2) }
                     contentItem: ColumnLayout {
-                        Image { source: root.safeIcon(modelData.icon); Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 40; Layout.preferredHeight: 40; fillMode: Image.PreserveAspectFit }
+                        AppGlyph { imageSource: root.safeIcon(modelData.icon); fallbackText: modelData.name; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 40; Layout.preferredHeight: 40 }
                         Caption { deyraTextScope: "Launcher"; text: modelData.name; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; font.pixelSize: 11 }
                     }
                 }
@@ -811,7 +981,7 @@ ShellRoot {
                     Pill { styleScope: "Control Center"; text: "×"; onClicked: root.page = "" }
                 }
                 Caption { deyraTextScope: "Control Center"; text: Qt.formatDate(root.now, "dddd, d MMMM yyyy") }
-                Caption { deyraTextScope: "Control Center"; text: "Volume" }
+                RowLayout { Layout.fillWidth: true; Caption { deyraTextScope: "Control Center"; text: "Volume"; Layout.fillWidth: true } Caption { deyraTextScope: "Control Center"; text: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : "Unavailable" } }
                 DeyraSlider {
                     Layout.fillWidth: true
                     from: 0; to: 1
@@ -831,7 +1001,7 @@ ShellRoot {
                     Layout.fillWidth: true
                     Pill { styleScope: "Control Center"; text: "Wallpapers"; onClicked: root.showWallpapers() }
                     Pill { styleScope: "Control Center"; text: "Notifications"; onClicked: root.toggle("notifications") }
-                    Pill { styleScope: "Control Center"; text: "Lock (planned)"; enabled: false }
+                    Pill { styleScope: "Control Center"; text: root.networkKind === "offline" ? "Network offline" : "Network connected"; onClicked: { root.page = ""; Quickshell.execDetached(["nm-connection-editor"]) } }
                 }
             }
         }
@@ -926,7 +1096,7 @@ ShellRoot {
                     y: switcher.radial ? ring.height/2 - height/2 + 138*Math.sin(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2) : 24
                     onClicked: { root.selectedWindow = index; root.confirmWindow() }
                     background: Rectangle { radius: 24; color: index === root.selectedWindow ? "#3d4263" : "#22263c"; border.width: 2; border.color: index === root.selectedWindow ? root.styleFor("Window Switcher").accent : "transparent" }
-                    contentItem: Image { source: root.appIcon(modelData); fillMode: Image.PreserveAspectFit; sourceSize.width: 32; sourceSize.height: 32 }
+                    contentItem: AppGlyph { imageSource: root.appIcon(modelData); fallbackText: modelData.title || modelData.appId || "?" }
                 }
             }
         }
