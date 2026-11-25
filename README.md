@@ -2,7 +2,7 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.2.1 alpha — source-derived module layouts and live bar editor. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.2.3 alpha — original project library and upstream screenshots. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
@@ -18,6 +18,14 @@ qs -c deyra
 Run in a terminal for the first smoke test; Ctrl+C stops the shell. The installer copies only the shell configuration to the user's XDG configuration directory and backs up any previous Deyra shell file. It does not install/remove packages or modify Niri, Hyprland, TQQ, or your existing desktop configuration. It creates the settings directory before startup.
 
 Before testing, temporarily stop other panels, wallpaper renderers and notification daemons using their own documented controls if you want to avoid conflicts. In particular, only one notification daemon may own the desktop notification D-Bus name. Do not remove the existing desktop or lock screen.
+
+## Version 0.2.3 — original project library
+
+Open Settings → Themes → Original themes. All twelve projects are represented. Screenshots link to their original project README or official showcase; the original authors retain their rights. No generated substitute screenshot is shown. TQQ Rice has no verified screenshot in its README, and Caelestia has a linked original video instead of an inline still. Image loading requires internet; a failed image offers the original showcase link.
+
+Download configs clones the selected original repository, including its configuration and source files, at the current default branch into `~/.config/deyra-shell/upstream/<project>` (or the equivalent XDG directory). Downloads are individual and optional to avoid consuming disk space. Git is required. No upstream installation scripts are executed, no dependencies are installed, and no compositor configuration is overwritten. Open originals opens that folder in your file manager. Existing downloads are retained unchanged.
+
+Apply Deyra port is deliberately separate: it applies the existing partial Deyra implementation, **not** the original shell or all its configuration files. Original configs are not interchangeable across these projects; native plugins, compositor integrations and services require further porting. Do not mistake official screenshots for the current Deyra rendering. Colors & appearance preserves the existing color editor.
 
 ## Version 0.2.1 — source-derived configurations
 
