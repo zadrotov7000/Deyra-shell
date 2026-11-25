@@ -8,7 +8,7 @@ if ! command -v qs >/dev/null 2>&1; then
     printf '%s\n' "Install Quickshell (qs) with Wayland, PipeWire and Notifications support first." >&2
     exit 1
 fi
-mkdir -p "$target" "$state"
+mkdir -p "$target" "$state" "$state/previews"
 if [ -e "$target/shell.qml" ] || [ -L "$target/shell.qml" ]; then
     backup="$state/backups/$(date +%Y%m%d-%H%M%S)-$$"
     mkdir -p "$backup"
