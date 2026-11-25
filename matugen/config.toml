@@ -1,0 +1,6 @@
+[config]
+reload_apps = false
+
+[config.wallpaper]
+set = false
+command = "true"
