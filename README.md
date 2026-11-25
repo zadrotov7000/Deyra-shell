@@ -2,7 +2,7 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.1.1 alpha — initial implementation with a selectable preset library, not a tested release.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.1.2 alpha — initial implementation with a selectable preset library, not a tested release.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
@@ -28,9 +28,30 @@ Before testing, temporarily stop other panels, wallpaper renderers and notificat
 - Notification popups, history and do-not-disturb.
 - Settings window with seven top-level tabs: Themes, Edit Mode, Community, Profile, System, Performance, Updates.
 - Theme accent, opacity, corner radius, bar position/height, module toggles, dock/clock toggles and local avatar.
-- Twelve original Deyra style presets with source credits and a miniature palette preview. Open **Edit Mode → Presets**, select All or an individual component, then Apply. All changes the global style and resets component overrides; individual styles can be mixed across Bar, Dock, Launcher, Control Center, Notifications and Window Switcher. Use global clears an individual override. Presets change colors, transparency, rounding and selected layout options, not upstream functionality.
+- Twelve original Deyra style presets with source credits and a miniature palette preview. Open **Edit Mode → Presets**, select All or an individual component, then Apply. All changes the global style and resets component overrides; individual styles can be mixed across Bar, Dock, Launcher, Control Center, Notifications and Window Switcher. Use global clears an individual override. Presets now change actual component layouts as well as colors, transparency and rounding. They are native Deyra implementations inspired by the source projects, not full upstream ports.
 - Static local wallpapers and on-demand online wallpaper search in fixed nature/space categories, with safe-only filter and local download. Click a result to download and apply; no API key needed. Internet results are user-uploaded content and subject to provider availability.
 - Settings persistence in `$XDG_CONFIG_HOME/deyra-shell/settings.json` (normally `~/.config/deyra-shell/settings.json`).
+
+## Native component layout variants
+
+Open Settings → Edit Mode → Presets. Select the target component, then apply a profile. Mix component layouts independently; selecting All resets overrides.
+
+| Profile | Bar | Launcher | Dock | Control center | Switcher |
+| --- | --- | --- | --- | --- | --- |
+| TQQ Rice | Islands | Left list | Icons | Dashboard | Radial |
+| Noctalia | Full | Center grid | Icons | Dashboard | Row |
+| DankMaterialShell | Full | Center grid | Labeled | Tiles | Row |
+| Caelestia | Notch | Center grid | Icons | Tiles | Radial |
+| Illogical Impulse | Full | Wide grid | Labeled | Tiles | Row |
+| HyDE | Groups | Center list | Icons | Compact | Row |
+| ML4W | Groups | Center grid | Labeled | Dashboard | Row |
+| iNiR | Full | Wide grid | Icons | Tiles | Radial |
+| DotFriedRice | Minimal | Center list | Labeled | Compact | Row |
+| Ambxst | Groups | Wide grid | Icons | Tiles | Radial |
+| DarkShadow | Dynamic center island | Center grid | Labeled | Dashboard | Radial |
+| Serpantinum | Notch | Center list | Icons | Compact | Row |
+
+Layouts share Deyra services and are intentionally not pixel-identical copies of upstream. Notification presets still change appearance only; native lock screen, upstream widgets, full feature parity and compositor-specific behavior remain incomplete. This version has not been launched or validated in a graphical session.
 
 ## Compositor shortcuts
 
