@@ -89,6 +89,7 @@ PanelWindow {
         target: "tqq-switcher"
         function next(): void { root.moveSelection(1); }
         function previous(): void { root.moveSelection(-1); }
+        function confirm(): void { root.commitSelection(); }
         function close(): void { root.closeWithoutSwitch(); }
     }
 
