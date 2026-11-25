@@ -2,7 +2,7 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.2.5 alpha — first actual upstream QML ports. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**0.2.6 alpha — wallpaper-driven Matugen colors; bottom dock removed. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
 
 ## Install and test
 
@@ -18,6 +18,12 @@ qs -c deyra
 Run in a terminal for the first smoke test; Ctrl+C stops the shell. The installer copies only the shell configuration to the user's XDG configuration directory and backs up any previous Deyra shell file. It does not install/remove packages or modify Niri, Hyprland, TQQ, or your existing desktop configuration. It creates the settings directory before startup.
 
 Before testing, temporarily stop other panels, wallpaper renderers and notification daemons using their own documented controls if you want to avoid conflicts. In particular, only one notification daemon may own the desktop notification D-Bus name. Do not remove the existing desktop or lock screen.
+
+## Version 0.2.6 — Matugen and no dock
+
+The bottom application dock has been removed, including the Dock settings category. Existing saved dock preferences are ignored. The top bar and launcher remain.
+
+Install Matugen separately if it is missing. Deyra uses its own installed `matugen/config.toml`, disables template writes with `--dry-run`, and reads the JSON color scheme. It generates a dark Material palette when the wallpaper changes, at startup, or on demand via **Themes → Colors & appearance → Regenerate**. It does not modify other rice configurations, terminals, or the compositor. Manual colors are retained and selecting a manual accent/background disables automatic colors. The imported TQQ launcher, switcher and Wi-Fi panel receive the Deyra palette at launch through their environment. This release does not recolor every upstream component or control outside Deyra. Graphical testing is pending.
 
 ## Version 0.2.5 — actual upstream code
 
