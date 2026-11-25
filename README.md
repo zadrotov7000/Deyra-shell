@@ -19,6 +19,26 @@ Run in a terminal for the first smoke test; Ctrl+C stops the shell. The installe
 
 Before testing, temporarily stop other panels, wallpaper renderers and notification daemons using their own documented controls if you want to avoid conflicts. In particular, only one notification daemon may own the desktop notification D-Bus name. Do not remove the existing desktop or lock screen.
 
+## Version 0.3.0 — original shell runtime manager
+
+Themes → Original themes → Launch original now invokes the **installed original project**, not Deyra's former layout preset. The original project's services, configuration, UI and dependencies are responsible for its features. Deyra releases its bar, background, notifications registration and panel surfaces while the selected runtime is active. Reopen the manager at any time with `qs -c deyra ipc call deyra settings` and choose Return to Deyra. The original foreground process is tracked; a startup failure or process exit restores Deyra. A process staying alive does not prove all of its features work.
+
+Install the upstream runtime and its dependencies according to its own documentation before using this option. Download configs only retrieves the original repository, not an installation. No upstream installer, package manager, or compositor configuration replacement is run by Deyra. Start Deyra with no other shell already active, and disable conflicting upstream autostart manually before switching.
+
+| Project | Native entrypoint | Compositor in this manager |
+| --- | --- | --- |
+| Serpantinum | `serpantinumd start` | Niri, Hyprland |
+| Noctalia | `noctalia` | Niri, Hyprland |
+| DankMaterialShell / Dux | `dms run` | Niri, Hyprland |
+| iNiR | `inir run --foreground` | Niri |
+| Ambxst | `ambxst` | Niri, Hyprland |
+| Caelestia | `qs -c caelestia` | Hyprland |
+| Illogical Impulse | `qs -c ii` | Hyprland |
+
+TQQ Rice, DarkShadow, HyDE, ML4W and DotFriedRice remain catalog entries only for full-shell switching: they require multi-process/session integration, and switching those safely has not been implemented. Older Deyra component variants remain available in Edit Mode as legacy Deyra layouts. They are not advertised as original runtimes. The Deyra Matugen palette applies only to Deyra and its partial ports, not to full independent original shells.
+
+This version does not install all twelve shells, share compositor keybinds or guarantee upstream dependencies on Debian. Serpantinum's full runtime, for example, needs its original installed daemon and backend; downloading QML alone is insufficient. Foreground process lifecycle and session compatibility require testing. The manager never uses a generic pkill on Quickshell. See upstream docs: [Serpantinum](https://serpantinum.dev/installation), [Noctalia](https://docs.noctalia.dev/noctalia/), [Dux](https://duxlabs.dev/docs/dms/cli-process-management), [iNiR](https://inir.space/docs/commands/), [Illogical Impulse](https://ii.clsty.link/en/ii-qs/01setup/).
+
 ## Version 0.2.6 — Matugen and no dock
 
 The bottom application dock has been removed, including the Dock settings category. Existing saved dock preferences are ignored. The top bar and launcher remain.
