@@ -2,7 +2,7 @@
 
 An experimental modular Wayland desktop shell written in QML and JavaScript with Quickshell. The first visual direction is the dark, rounded island design of [TQQ Niri Rice](https://github.com/zadrotov7000/TQQ-Niri-rice).
 
-**0.2.6 alpha — wallpaper-driven Matugen colors; bottom dock removed. Not yet runtime-tested.** Targets Niri and Hyprland. No Waybar, Dunst or Fuzzel dependency.
+**1.0.0-dev — original shell manager, development build. Not a stable 1.0 release.** Targets Niri and Hyprland.
 
 ## Install and test
 
@@ -18,6 +18,28 @@ qs -c deyra
 Run in a terminal for the first smoke test; Ctrl+C stops the shell. The installer copies only the shell configuration to the user's XDG configuration directory and backs up any previous Deyra shell file. It does not install/remove packages or modify Niri, Hyprland, TQQ, or your existing desktop configuration. It creates the settings directory before startup.
 
 Before testing, temporarily stop other panels, wallpaper renderers and notification daemons using their own documented controls if you want to avoid conflicts. In particular, only one notification daemon may own the desktop notification D-Bus name. Do not remove the existing desktop or lock screen.
+
+## 1.0.0-dev — managed installation of original shells
+
+Settings → Themes → Original themes now distinguishes source downloads from real runtime installations. The manager does not redraw upstream interfaces. Select **Install**, review the confirmation, then authenticate if APT needs missing dependencies. The operation log remains inside Settings. Select **Apply** after the runtime is installed. Deyra yields desktop surfaces and its notification server to the upstream runtime; open the manager using `qs -c deyra ipc call deyra settings`.
+
+### Installation coverage (Debian / Ubuntu x86-64)
+
+| Project | Managed installation path |
+| --- | --- |
+| Serpantinum | Original repository and its full QML tree, original daemon and version-pinned upstream core/audio/gamma binaries. SHA-256 checked against release manifests. Needs compatible Quickshell. Two automatic migration scripts are disabled to avoid modifying the user's existing Niri and EasyEffects settings. Optional external programs, PAM service and compositor-specific keybind integration remain untested or incomplete. |
+| Noctalia | Original C++ source via Meson, official Debian build dependencies, one compile job. Needs at least 5 GiB free before package installation; may need more to finish. |
+| DankMaterialShell / Dux | Actual `dms` APT package if the upstream repository is already configured. No automatic repository trust or key changes. Dux packages installed outside Deyra remain externally managed. |
+| Caelestia, Illogical Impulse, iNiR, Ambxst | Source download/update and launch of separately installed runtime where compatible. No managed install recipe yet. |
+| DarkShadow, TQQ Rice, HyDE, ML4W, DotFriedRice | Source download/update only; full session integration remains unimplemented. |
+
+Local installations live under `$XDG_DATA_HOME/deyra-shell/managed` (default `~/.local/share/deyra-shell/managed`). Update installs to a fresh versioned directory before changing the active manifest; Rollback selects the previous completed local version. Remove deletes only manager-owned versions; for Dux, removal is simulated first and rejected if it would remove other packages. Shared dependencies and personal settings are retained. APT dependency installation uses a simulation and `--no-remove`, and requires authentication through polkit/pkexec when missing packages must be installed. There is no automatic package removal or compositor configuration deployment. Upstream shells can manage their own configuration while running.
+
+The source checkout location remains `~/.config/deyra-shell/upstream` (or XDG equivalent). A downloaded source is not an installed shell. Source updates are fast-forward-only.
+
+### Validation and release gate
+
+`python3 -m unittest discover -s tests -p 'test_*.py' -v` runs offline tests using temporary directories and mocked downloads/builds. GitHub Actions checks the Python and installer syntax and runs these tests. Real graphical installation, service startup, screen locking, compositor shortcuts, package availability and switching must be verified on supported distributions before declaring 1.0 stable. This development build does **not** claim that all twelve original shells can be installed or used with every feature.
 
 ## Version 0.3.0 — original shell runtime manager
 
