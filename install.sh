@@ -15,6 +15,8 @@ if [ -e "$target/shell.qml" ] || [ -L "$target/shell.qml" ]; then
     cp -L "$target/shell.qml" "$backup/"
     printf 'Backup: %s\n' "$backup"
 fi
+mkdir -p "$target/ports"
+cp -R ports/. "$target/ports/"
 tmp=$(mktemp "$target/.shell.XXXXXX")
 trap 'rm -f "$tmp"' EXIT HUP INT TERM
 cat shell.qml > "$tmp"
