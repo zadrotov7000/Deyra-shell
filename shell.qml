@@ -54,14 +54,26 @@ ShellRoot {
         if (isNiri) Quickshell.execDetached(["sh","-c","printf '%s\\n' \"$1\" | niri msg raw-request","deyra",JSON.stringify({Action:{FocusWorkspace:{reference:{Id:ws.id}}}})])
         else if (isHyprland && ws.id > 0) Quickshell.execDetached(["hyprctl","dispatch","workspace",String(ws.id)])
     }
-    property color accent: prefs.accent
-    property color surface: Qt.alpha(prefs.background, prefs.opacity)
-    property color foreground: "#e9eaf0"
-    readonly property color uiBase: "#17181d"
-    readonly property color uiPanel: "#202127"
-    readonly property color uiRaised: "#292b33"
-    readonly property color uiMuted: "#999da9"
-    readonly property color uiLine: "#34363e"
+    // The manual theme stays stored independently of the generated Material palette.
+    readonly property bool dynamicColors: prefs.matugenEnabled && !!prefs.matugenPalette.primary
+    function paletteColor(key, fallback) {
+        const value = prefs.matugenPalette[key]
+        return dynamicColors && typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback
+    }
+    property color accent: paletteColor("primary", prefs.accent)
+    property color surface: Qt.alpha(paletteColor("background", prefs.background), prefs.opacity)
+    property color foreground: paletteColor("on_surface","#e9eaf0")
+    property color uiBase: paletteColor("background","#17181d")
+    property color uiPanel: paletteColor("surface_container","#202127")
+    property color uiRaised: paletteColor("surface_container_high","#292b33")
+    readonly property color uiMuted: paletteColor("on_surface_variant","#999da9")
+    readonly property color uiLine: paletteColor("outline_variant","#34363e")
+    Behavior on accent { ColorAnimation { duration: root.motion } }
+    Behavior on surface { ColorAnimation { duration: root.motion } }
+    Behavior on foreground { ColorAnimation { duration: root.motion } }
+    Behavior on uiBase { ColorAnimation { duration: root.motion } }
+    Behavior on uiPanel { ColorAnimation { duration: root.motion } }
+    Behavior on uiRaised { ColorAnimation { duration: root.motion } }
     readonly property int motion: prefs.reduceMotion ? 0 : 200
     function tint(bg, amount) { return Qt.tint(bg, Qt.rgba(1,1,1,amount)) }
     function pageDescription(tab) {
@@ -87,7 +99,6 @@ ShellRoot {
             "radius": 17,
             "height": 42,
             "bottom": false,
-            "dock": true,
             "clock": true,
             "description": "Dark floating islands"
         },
@@ -101,7 +112,6 @@ ShellRoot {
             "radius": 14,
             "height": 40,
             "bottom": false,
-            "dock": true,
             "clock": true,
             "description": "Muted rounded panels"
         },
@@ -115,7 +125,6 @@ ShellRoot {
             "radius": 24,
             "height": 48,
             "bottom": false,
-            "dock": true,
             "clock": true,
             "description": "Material-inspired blue"
         },
@@ -129,7 +138,6 @@ ShellRoot {
             "radius": 28,
             "height": 48,
             "bottom": false,
-            "dock": false,
             "clock": true,
             "description": "Soft rounded pastel"
         },
@@ -143,7 +151,6 @@ ShellRoot {
             "radius": 24,
             "height": 46,
             "bottom": true,
-            "dock": true,
             "clock": true,
             "description": "Material-inspired sage"
         },
@@ -157,7 +164,6 @@ ShellRoot {
             "radius": 10,
             "height": 38,
             "bottom": false,
-            "dock": true,
             "clock": true,
             "description": "Cool transparent islands"
         },
@@ -171,7 +177,6 @@ ShellRoot {
             "radius": 8,
             "height": 44,
             "bottom": false,
-            "dock": true,
             "clock": true,
             "description": "Compact blue panels"
         },
@@ -185,7 +190,6 @@ ShellRoot {
             "radius": 22,
             "height": 44,
             "bottom": false,
-            "dock": true,
             "clock": true,
             "description": "Rounded rose deyraStyle"
         },
@@ -199,7 +203,6 @@ ShellRoot {
             "radius": 4,
             "height": 38,
             "bottom": false,
-            "dock": false,
             "clock": false,
             "description": "Minimal compact green"
         },
@@ -213,7 +216,6 @@ ShellRoot {
             "radius": 20,
             "height": 46,
             "bottom": true,
-            "dock": true,
             "clock": true,
             "description": "Warm floating controls"
         },
@@ -227,7 +229,6 @@ ShellRoot {
             "radius": 20,
             "height": 44,
             "bottom": false,
-            "dock": true,
             "clock": true,
             "description": "Dark translucent material"
         },
@@ -241,12 +242,11 @@ ShellRoot {
             "radius": 16,
             "height": 42,
             "bottom": false,
-            "dock": true,
             "clock": true,
             "description": "Teal glass-inspired panels"
         }
     ]
-    readonly property var supportedScopes: ["Bar", "Dock", "Launcher", "Control Center", "Notifications", "Window Switcher"]
+    readonly property var supportedScopes: ["Bar", "Launcher", "Control Center", "Notifications", "Window Switcher"]
     // Native component layouts, independent of colors; inspired by upstream UI concepts.
     readonly property var layoutProfiles: ({
         "TQQ Rice":          ["islands", "list-left", "icons", "dashboard", "radial"],
@@ -658,7 +658,8 @@ ShellRoot {
     }
     function styleFor(scope) {
         const p = (prefs.componentStyles || {})[scope]
-        return p || {name: prefs.activePreset, accent: prefs.accent, bg: prefs.background, opacity: prefs.opacity, radius: prefs.radius}
+        const base = p || {name: prefs.activePreset, accent: prefs.accent, bg: prefs.background, opacity: prefs.opacity, radius: prefs.radius}
+        return dynamicColors ? Object.assign({}, base, {accent:paletteColor("primary",base.accent), bg:paletteColor("background",base.bg)}) : base
     }
     function applyPreset(preset, scope) {
         if (scope === "All") {
@@ -668,7 +669,6 @@ ShellRoot {
             prefs.radius = preset.radius
             prefs.barHeight = preset.height
             prefs.barBottom = preset.bottom
-            prefs.dockEnabled = preset.dock
             prefs.desktopClock = preset.clock
             prefs.activePreset = preset.name
             prefs.componentStyles = ({})
@@ -785,6 +785,7 @@ ShellRoot {
         if (key === "accent" || key === "bg") {
             value = String(value).trim().toLowerCase()
             if (!/^#[0-9a-f]{6}$/.test(value)) { status = "Enter a valid #RRGGBB color"; return }
+            if (prefs.matugenEnabled) prefs.matugenEnabled = false
         } else if (key === "opacity") value = Math.max(.45, Math.min(1, Number(value)))
         else if (key === "radius") value = Math.max(0, Math.min(40, Math.round(Number(value))))
         else return
@@ -838,17 +839,17 @@ ShellRoot {
     }
     Process {
         id: originalLauncher
-        command: ["qs","-p",root.portPath("launcher")]
+        command: ["env","DEYRA_PALETTE_JSON="+root.originalPanelPalette("Launcher"),"qs","-p",root.portPath("launcher")]
         onExited: function(code) { const stopped = root.stoppingOriginalLauncher; root.stoppingOriginalLauncher = false; if(!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ launcher failed ("+code+"); using native fallback."; root.page = "launcher" } }
     }
     Process {
         id: originalSwitcher
-        command: ["qs","-p",root.portPath("switcher")]
+        command: ["env","DEYRA_PALETTE_JSON="+root.originalPanelPalette("Window Switcher"),"qs","-p",root.portPath("switcher")]
         onExited: function(code) { const stopped = root.stoppingOriginalSwitcher; root.stoppingOriginalSwitcher = false; if(!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ switcher failed ("+code+"); using native fallback."; root.page = "switcher" } }
     }
     Process {
         id: originalWifi
-        command: ["qs","-p",root.portPath("wifi")]
+        command: ["env","DEYRA_PALETTE_JSON="+root.originalPanelPalette("Bar"),"qs","-p",root.portPath("wifi")]
         onExited: function(code) { const stopped = root.stoppingOriginalWifi; root.stoppingOriginalWifi = false; if(!stopped && code !== 0 && prefs.useOriginalPorts) { root.status = "Original TQQ Wi-Fi failed ("+code+"). Check NetworkManager."; root.page = "control" } }
     }
     function toggle(name) {
@@ -985,6 +986,77 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: root.brightnessText = text.trim() }
     }
     Timer { interval: 8000; running: root.effectiveBarLayout.left.concat(root.effectiveBarLayout.center,root.effectiveBarLayout.right).indexOf("brightness") >= 0; repeat: true; triggeredOnStart: true; onTriggered: if(!brightnessInfo.running) brightnessInfo.running = true }
+    property string matugenStatus: "Choose a wallpaper to generate a palette."
+    property string requestedWallpaper: ""
+    function queueMatugen() {
+        if (!prefs.matugenEnabled) { matugenStatus = "Manual colors active"; return }
+        if (!prefs.wallpaper) { matugenStatus = "Choose a wallpaper first"; return }
+        matugenDebounce.restart()
+    }
+    function generateMatugen() {
+        if (!prefs.matugenEnabled || !prefs.wallpaper || matugenProcess.running) return
+        const url = prefs.wallpaper
+        let path = url
+        try { if (url.indexOf("file://") === 0) path = decodeURIComponent(url.slice(7)) } catch(e) { matugenStatus = "Invalid wallpaper path"; return }
+        if (!path.startsWith("/")) { matugenStatus = "Matugen requires a local wallpaper"; return }
+        requestedWallpaper = url
+        matugenStatus = "Generating wallpaper colors…"
+        matugenProcess.command = ["matugen","-c",Quickshell.shellPath("matugen/config.toml"),"image",path,"-m","dark","--dry-run","--json","hex"]
+        matugenProcess.running = true
+    }
+    // Supports both mode-first JSON and role-first Matugen output.
+    function parseMatugen(raw) {
+        const json = JSON.parse(raw)
+        const colors = json.colors || json
+        const roles = ["primary","secondary","tertiary","background","surface","surface_container","surface_container_high","surface_variant","on_surface","on_surface_variant","on_primary","outline","outline_variant"]
+        const result = {}
+        function hex(value) {
+            if (value && typeof value === "object") value = value.color || value.hex
+            return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : ""
+        }
+        for (const role of roles) {
+            const old = colors.dark && colors.dark[role]
+            const current = colors[role]
+            const value = hex(old) || hex(current && (current.dark || current.default)) || hex(current)
+            if (value) result[role] = value
+        }
+        if (!result.primary || !result.background || !result.on_surface) throw Error("Missing required palette roles")
+        return result
+    }
+    Connections {
+        target: prefs
+        function onWallpaperChanged() { root.queueMatugen() }
+        function onMatugenEnabledChanged() { root.queueMatugen() }
+    }
+    Timer { id: matugenDebounce; interval: 350; onTriggered: root.generateMatugen() }
+    Timer { interval: 1000; running: true; repeat: false; onTriggered: root.queueMatugen() }
+    Process {
+        id: matugenProcess
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!prefs.matugenEnabled || root.requestedWallpaper !== prefs.wallpaper) return
+                if (!text.trim()) return
+                try {
+                    prefs.matugenPalette = root.parseMatugen(text)
+                    root.matugenStatus = "Wallpaper palette applied"
+                } catch(e) { root.matugenStatus = "Matugen returned an unsupported palette; previous colors retained." }
+            }
+        }
+        onExited: function(code) {
+            if (prefs.matugenEnabled && root.requestedWallpaper !== prefs.wallpaper) root.queueMatugen()
+            else if (code !== 0 && prefs.matugenEnabled) root.matugenStatus = "Matugen failed. Check that matugen is installed and the wallpaper exists."
+        }
+    }
+    function originalPanelPalette(scope) {
+        const style = styleFor(scope)
+        const background = style.bg
+        return JSON.stringify({
+            background:background, surface:paletteColor("surface_container",String(Qt.tint(background,Qt.rgba(1,1,1,.08)))),
+            surface_variant:paletteColor("surface_container_high",String(Qt.tint(background,Qt.rgba(1,1,1,.16)))),
+            foreground:paletteColor("on_surface",contrastingText(background)), muted:paletteColor("on_surface_variant","#aaa0ad"),
+            primary:style.accent, on_primary:paletteColor("on_primary",contrastingText(style.accent))
+        })
+    }
     FileView {
         id: configFile
         path: root.statePath + "/settings.json"
@@ -1011,7 +1083,6 @@ ShellRoot {
             property bool switcherAnimated: true
             property string switcherAlign: "center"
             property bool barBottom: false
-            property bool dockEnabled: true
             property bool desktopClock: false
             property string desktopClockStyle: "source"
             property bool useOriginalPorts: true
@@ -1019,6 +1090,8 @@ ShellRoot {
             property bool showAudio: true
             property bool showNotifications: true
             property string wallpaper: ""
+            property bool matugenEnabled: true
+            property var matugenPalette: ({})
             property string avatar: ""
         }
     }
@@ -1360,8 +1433,8 @@ ShellRoot {
                     Dux.DesktopClock {
                         pluginData: ({showSeconds:false, showDate:true, clockStyle:"analog", backgroundOpacity:80})
                         accent: root.accent
-                        surface: prefs.background
-                        foreground: root.contrastingText(prefs.background)
+                        surface: root.paletteColor("background",prefs.background)
+                        foreground: root.contrastingText(root.paletteColor("background",prefs.background))
                         corner: prefs.radius
                     }
                 }
@@ -1551,52 +1624,6 @@ ShellRoot {
                     height: prefs.barHeight
                     clip: true
                     BarSection { id: rightBar; anchors { right: parent.right; rightMargin: 5; verticalCenter: parent.verticalCenter } modules: root.effectiveBarLayout.right; outputName: barArea.output }
-                }
-            }
-        }
-    }
-    PanelWindow {
-        id: dockWindow
-        readonly property bool labeled: root.layoutFor("Dock") === "labeled"
-        visible: prefs.dockEnabled
-        anchors.bottom: true
-        margins.bottom: prefs.barBottom ? prefs.barHeight + 6 : 6
-        implicitWidth: Math.min(screen ? screen.width - 20 : 700, dockRow.implicitWidth + 18)
-        implicitHeight: dockWindow.labeled ? 76 : 58
-        color: "transparent"
-        Card {
-            styleScope: "Dock"
-            anchors.fill: parent
-            Row {
-                id: dockRow
-                anchors.centerIn: parent
-                spacing: 6
-                Button {
-                    width: 42; height: 42; onClicked: root.toggle("launcher")
-                    background: Rectangle { radius: 12; color: parent.hovered ? root.tint(root.styleFor("Dock").bg,.15) : "transparent"; Behavior on color { ColorAnimation { duration: root.motion/2 } } }
-                    contentItem: Item { ShellIcon { anchors.centerIn: parent; width: 21; height: 21; glyph: "search"; ink: root.styleFor("Dock").accent } }
-                    ToolTip.visible: hovered; ToolTip.text: "Applications"
-                }
-                Repeater {
-                    model: root.windows.slice(0, Math.max(1, Math.min(12, Math.floor(((dockWindow.screen ? dockWindow.screen.width : 700)-80)/(dockWindow.labeled ? 84 : 48)))))
-                    delegate: Button {
-                        id: dockEntry
-                        required property var modelData
-                        width: dockWindow.labeled ? 78 : 42; height: dockWindow.labeled ? 60 : 42
-                        onClicked: modelData.activate()
-                        background: Rectangle {
-                            radius: 12; color: parent.hovered ? root.tint(root.styleFor("Dock").bg,.14) : "transparent"
-                            Behavior on color { ColorAnimation { duration: root.motion/2 } }
-                            Rectangle { anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 1 }
-                                width: modelData.activated ? 16 : 4; height: 3; radius: 2; color: modelData.activated ? root.styleFor("Dock").accent : root.uiMuted; Behavior on width { NumberAnimation { duration: root.motion } } }
-                        }
-                        contentItem: ColumnLayout {
-                            AppGlyph { imageSource: root.appIcon(modelData); fallbackText: modelData.title || modelData.appId || "?"; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 30; Layout.preferredHeight: 30; scale: dockEntry.hovered && !prefs.reduceMotion ? 1.13 : 1; Behavior on scale { NumberAnimation { duration: root.motion/2; easing.type: Easing.OutCubic } } }
-                            Caption { deyraTextScope: "Dock"; visible: dockWindow.labeled; text: modelData.title; Layout.fillWidth: true; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 10 }
-                        }
-                        ToolTip.visible: hovered
-                        ToolTip.text: modelData.title
-                    }
                 }
             }
         }
@@ -1938,7 +1965,7 @@ ShellRoot {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
                         RowLayout {
                             Layout.fillWidth: true
-                            Muted { text: "v0.2.5 alpha"; Layout.fillWidth: true }
+                            Muted { text: "v0.2.6 alpha"; Layout.fillWidth: true }
                             Pill { text: "×"; implicitWidth: 34; implicitHeight: 32; onClicked: root.page = "" }
                         }
                     }
@@ -2195,6 +2222,34 @@ ShellRoot {
                     spacing: 12
                     property bool showFullPalette: false
                     Caption { text: "Theme & palette"; font.pixelSize: 18; font.weight: Font.DemiBold }
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.preferredHeight: paletteControls.implicitHeight + 24
+                        radius: 12; color: root.uiPanel; border.color: root.uiLine
+                        ColumnLayout {
+                            id: paletteControls
+                            anchors.fill: parent; anchors.margins: 12; spacing: 8
+                            DeyraCheck { Layout.fillWidth: true; text: "Matugen · colors from wallpaper"; checked: prefs.matugenEnabled; onToggled: prefs.matugenEnabled = checked }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Muted { text: root.matugenStatus; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                                Pill { text: matugenProcess.running ? "Generating…" : "Regenerate"; enabled: prefs.matugenEnabled && !matugenProcess.running && prefs.wallpaper !== ""; onClicked: root.queueMatugen() }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Repeater {
+                                    model: ["primary","secondary","tertiary","background","surface_container","on_surface"]
+                                    delegate: Rectangle {
+                                        required property string modelData
+                                        Layout.fillWidth: true; Layout.preferredHeight: 26
+                                        radius: 6; border.color: root.uiLine
+                                        color: root.paletteColor(modelData,root.uiRaised)
+                                        Behavior on color { ColorAnimation { duration: root.motion } }
+                                    }
+                                }
+                            }
+                            Muted { text: "Manual color selection disables automatic colors. Layouts and sizes are preserved."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                        }
+                    }
                     RowLayout {
                         Layout.fillWidth: true
                         Caption { text: "Preset: " + prefs.activePreset; Layout.fillWidth: true; elide: Text.ElideRight }
@@ -2293,13 +2348,13 @@ ShellRoot {
                 Flow {
                     Layout.fillWidth: true; spacing: 6
                     Repeater {
-                        model: ["Presets","Bar","Dock","Desktop Widgets","Launcher","Control Center","Lock Screen","Notifications","Window Switcher","Wallpapers"]
+                        model: ["Presets","Bar","Desktop Widgets","Launcher","Control Center","Lock Screen","Notifications","Window Switcher","Wallpapers"]
                         delegate: Pill { required property string modelData; text: modelData; deyraSelected: root.editTab === modelData; onClicked: root.editTab = modelData }
                     }
                 }
                 Loader {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    sourceComponent: root.editTab === "Presets" ? presetsPage : root.editTab === "Wallpapers" ? wallpapersPage : root.editTab === "Bar" ? barPage : root.editTab === "Dock" ? dockPage : root.editTab === "Desktop Widgets" ? widgetsPage : root.editTab === "Notifications" ? notificationsPage : root.editTab === "Window Switcher" ? switcherPage : pendingPage
+                    sourceComponent: root.editTab === "Presets" ? presetsPage : root.editTab === "Wallpapers" ? wallpapersPage : root.editTab === "Bar" ? barPage : root.editTab === "Desktop Widgets" ? widgetsPage : root.editTab === "Notifications" ? notificationsPage : root.editTab === "Window Switcher" ? switcherPage : pendingPage
                 }
             }
         }
@@ -2459,7 +2514,6 @@ ShellRoot {
                 }
             }
         }
-        Component { id: dockPage; Section { DeyraCheck { text: "Show running applications dock"; checked: prefs.dockEnabled; onToggled: prefs.dockEnabled = checked } Item { Layout.fillHeight: true } } }
         Component {
             id: widgetsPage
             Section {
@@ -2591,6 +2645,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.5 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.6 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
