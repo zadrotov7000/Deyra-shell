@@ -21,7 +21,7 @@ ShellRoot {
     property var windows: Array.from(ToplevelManager.toplevels.values).slice(0, 12)
     property var now: new Date()
     property color accent: prefs.accent
-    property color surface: Qt.rgba(15/255,17/255,30/255,prefs.opacity)
+    property color surface: Qt.alpha(prefs.background, prefs.opacity)
     property color foreground: "#eef2ff"
     property string configPath: Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
     property string statePath: configPath + "/deyra-shell"
@@ -29,7 +29,210 @@ ShellRoot {
     property bool dnd: false
     property string systemInfo: ""
     property string profileName: Quickshell.env("USER") || "User"
-    property var presetNames: ["TQQ Rice", "Noctalia", "DankMaterialShell", "Caelestia", "Illogical Impulse", "HyDE", "ML4W", "iNiR", "DotFriedRice", "Ambxst", "DarkShadow", "Serpantinum"]
+    // Original Deyra style presets. No upstream code or artwork is bundled.
+    readonly property var presets: [
+        {
+            "name": "TQQ Rice",
+            "author": "zadrotov7000",
+            "url": "https://github.com/zadrotov7000/TQQ-Niri-rice",
+            "accent": "#a38ff7",
+            "bg": "#0f111e",
+            "opacity": 0.91,
+            "radius": 17,
+            "height": 42,
+            "bottom": false,
+            "dock": true,
+            "clock": true,
+            "description": "Dark floating islands"
+        },
+        {
+            "name": "Noctalia",
+            "author": "noctalia-dev",
+            "url": "https://github.com/noctalia-dev/noctalia",
+            "accent": "#c6a0f6",
+            "bg": "#24273a",
+            "opacity": 0.96,
+            "radius": 14,
+            "height": 40,
+            "bottom": false,
+            "dock": true,
+            "clock": true,
+            "description": "Muted rounded panels"
+        },
+        {
+            "name": "DankMaterialShell",
+            "author": "duxlabs-dev / AvengeMedia",
+            "url": "https://github.com/duxlabs-dev/dux-shell",
+            "accent": "#a9c7ff",
+            "bg": "#1a202c",
+            "opacity": 0.98,
+            "radius": 24,
+            "height": 48,
+            "bottom": false,
+            "dock": true,
+            "clock": true,
+            "description": "Material-inspired blue"
+        },
+        {
+            "name": "Caelestia",
+            "author": "caelestia-dots",
+            "url": "https://github.com/caelestia-dots/shell",
+            "accent": "#f5c2e7",
+            "bg": "#1e1e2e",
+            "opacity": 0.94,
+            "radius": 28,
+            "height": 48,
+            "bottom": false,
+            "dock": false,
+            "clock": true,
+            "description": "Soft rounded pastel"
+        },
+        {
+            "name": "Illogical Impulse",
+            "author": "end-4",
+            "url": "https://github.com/end-4/dots-hyprland",
+            "accent": "#b8d1a0",
+            "bg": "#20271f",
+            "opacity": 0.97,
+            "radius": 24,
+            "height": 46,
+            "bottom": true,
+            "dock": true,
+            "clock": true,
+            "description": "Material-inspired sage"
+        },
+        {
+            "name": "HyDE",
+            "author": "HyDE-Project",
+            "url": "https://github.com/HyDE-Project/HyDE",
+            "accent": "#89dceb",
+            "bg": "#161b26",
+            "opacity": 0.72,
+            "radius": 10,
+            "height": 38,
+            "bottom": false,
+            "dock": true,
+            "clock": true,
+            "description": "Cool transparent islands"
+        },
+        {
+            "name": "ML4W",
+            "author": "mylinuxforwork",
+            "url": "https://github.com/mylinuxforwork/dotfiles",
+            "accent": "#82aaff",
+            "bg": "#222832",
+            "opacity": 0.96,
+            "radius": 8,
+            "height": 44,
+            "bottom": false,
+            "dock": true,
+            "clock": true,
+            "description": "Compact blue panels"
+        },
+        {
+            "name": "iNiR",
+            "author": "snowarch",
+            "url": "https://github.com/snowarch/iNiR",
+            "accent": "#f0b8c8",
+            "bg": "#30212b",
+            "opacity": 0.94,
+            "radius": 22,
+            "height": 44,
+            "bottom": false,
+            "dock": true,
+            "clock": true,
+            "description": "Rounded rose palette"
+        },
+        {
+            "name": "DotFriedRice",
+            "author": "nickjj",
+            "url": "https://github.com/nickjj/dotfriedrice",
+            "accent": "#8ec07c",
+            "bg": "#202423",
+            "opacity": 0.99,
+            "radius": 4,
+            "height": 38,
+            "bottom": false,
+            "dock": false,
+            "clock": false,
+            "description": "Minimal compact green"
+        },
+        {
+            "name": "Ambxst",
+            "author": "Axenide",
+            "url": "https://github.com/Axenide/Ambxst",
+            "accent": "#ffc78e",
+            "bg": "#29211f",
+            "opacity": 0.88,
+            "radius": 20,
+            "height": 46,
+            "bottom": true,
+            "dock": true,
+            "clock": true,
+            "description": "Warm floating controls"
+        },
+        {
+            "name": "DarkShadow",
+            "author": "shadowww-dev",
+            "url": "https://github.com/shadowww-dev/DarkShadowShell",
+            "accent": "#9aa9ff",
+            "bg": "#10121a",
+            "opacity": 0.82,
+            "radius": 20,
+            "height": 44,
+            "bottom": false,
+            "dock": true,
+            "clock": true,
+            "description": "Dark translucent material"
+        },
+        {
+            "name": "Serpantinum",
+            "author": "ilyamiro",
+            "url": "https://github.com/ilyamiro/serpantinum",
+            "accent": "#8bd5ca",
+            "bg": "#18252b",
+            "opacity": 0.85,
+            "radius": 16,
+            "height": 42,
+            "bottom": false,
+            "dock": true,
+            "clock": true,
+            "description": "Teal glass-inspired panels"
+        }
+    ]
+    readonly property var supportedScopes: ["Bar", "Dock", "Launcher", "Control Center", "Notifications", "Window Switcher"]
+    function styleFor(scope) {
+        const p = prefs.componentStyles[scope]
+        return p || {name: prefs.activePreset, accent: prefs.accent, bg: prefs.background, opacity: prefs.opacity, radius: prefs.radius}
+    }
+    function applyPreset(preset, scope) {
+        if (scope === "All") {
+            prefs.accent = preset.accent
+            prefs.background = preset.bg
+            prefs.opacity = preset.opacity
+            prefs.radius = preset.radius
+            prefs.barHeight = preset.height
+            prefs.barBottom = preset.bottom
+            prefs.dockEnabled = preset.dock
+            prefs.desktopClock = preset.clock
+            prefs.activePreset = preset.name
+            prefs.componentStyles = ({})
+        } else if (supportedScopes.indexOf(scope) >= 0) {
+            const next = Object.assign({}, prefs.componentStyles)
+            next[scope] = {name: preset.name, accent: preset.accent, bg: preset.bg, opacity: preset.opacity, radius: preset.radius}
+            prefs.componentStyles = next
+            if (scope === "Bar") { prefs.barHeight = preset.height; prefs.barBottom = preset.bottom }
+        } else return
+        status = preset.name + " applied to " + scope
+    }
+    function resetComponent(scope) {
+        const next = Object.assign({}, prefs.componentStyles)
+        delete next[scope]
+        prefs.componentStyles = next
+        status = scope + " now follows global appearance"
+    }
+    function componentPreview(scope) { return scope === "All" ? prefs.activePreset : styleFor(scope).name }
+    property string presetScope: "All"
 
     function toggle(name) { page = page === name ? "" : name }
     function showSettings(section) { settingsTab = section; page = "settings" }
@@ -93,6 +296,9 @@ ShellRoot {
         JsonAdapter {
             id: prefs
             property string accent: "#a38ff7"
+            property string background: "#0f111e"
+            property string activePreset: "TQQ Rice"
+            property var componentStyles: ({})
             property real opacity: 0.91
             property int radius: 17
             property int barHeight: 42
@@ -163,28 +369,33 @@ ShellRoot {
     component Pill: Button {
         id: button
         property bool highlighted: false
+        property string styleScope: ""
+        readonly property var palette: root.styleFor(styleScope)
         implicitHeight: 34
         implicitWidth: Math.max(42, contentItem.implicitWidth + 24)
         padding: 10
         contentItem: Caption {
             text: button.text
-            color: button.highlighted ? root.accent : root.foreground
+            color: button.highlighted ? button.palette.accent : root.foreground
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
         }
         background: Rectangle {
-            radius: prefs.radius
-            color: button.hovered || button.highlighted ? "#292d46" : root.surface
-            border.color: root.accent
+            radius: button.palette.radius
+            color: button.hovered || button.highlighted ? Qt.lighter(button.palette.bg, 1.45) : Qt.alpha(button.palette.bg, button.palette.opacity)
+            border.color: button.palette.accent
             border.width: 1
         }
     }
     component Section: ColumnLayout { spacing: 12 }
+    component BarPill: Pill { styleScope: "Bar" }
     component Card: Rectangle {
-        color: root.surface
-        radius: prefs.radius
-        border.color: root.accent
+        property string styleScope: ""
+        readonly property var palette: root.styleFor(styleScope)
+        color: Qt.alpha(palette.bg, palette.opacity)
+        radius: palette.radius
+        border.color: palette.accent
         border.width: 1
     }
 
@@ -217,10 +428,10 @@ ShellRoot {
             Row {
                 anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                 spacing: 6
-                Pill { text: "⌕"; highlighted: true; onClicked: root.toggle("launcher") }
-                Pill { text: "Deyra"; onClicked: root.toggle("settings") }
+                BarPill { text: "⌕"; highlighted: true; onClicked: root.toggle("launcher") }
+                BarPill { text: "Deyra"; onClicked: root.toggle("settings") }
             }
-            Pill {
+            BarPill {
                 anchors.centerIn: parent
                 text: Qt.formatDateTime(root.now, "ddd  hh:mm")
                 onClicked: root.toggle("control")
@@ -228,9 +439,9 @@ ShellRoot {
             Row {
                 anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
                 spacing: 6
-                Pill { visible: prefs.showAudio; text: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? "Vol " + Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : "Audio"; onClicked: root.toggle("control") }
-                Pill { visible: prefs.showNotifications; text: "Alerts " + notifications.trackedNotifications.values.length; onClicked: root.toggle("notifications") }
-                Pill { text: "⚙"; onClicked: root.toggle("settings") }
+                BarPill { visible: prefs.showAudio; text: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? "Vol " + Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : "Audio"; onClicked: root.toggle("control") }
+                BarPill { visible: prefs.showNotifications; text: "Alerts " + notifications.trackedNotifications.values.length; onClicked: root.toggle("notifications") }
+                BarPill { text: "⚙"; onClicked: root.toggle("settings") }
             }
         }
     }
@@ -242,19 +453,20 @@ ShellRoot {
         implicitHeight: 58
         color: "transparent"
         Card {
+            styleScope: "Dock"
             anchors.fill: parent
             Row {
                 id: dockRow
                 anchors.centerIn: parent
                 spacing: 6
-                Pill { text: "⌕"; onClicked: root.toggle("launcher") }
+                Pill { styleScope: "Dock"; text: "⌕"; onClicked: root.toggle("launcher") }
                 Repeater {
                     model: root.windows.slice(0, 12)
                     delegate: Button {
                         required property var modelData
                         width: 42; height: 42
                         onClicked: modelData.activate()
-                        background: Rectangle { radius: 12; color: parent.hovered ? "#343854" : "transparent"; border.width: modelData.activated ? 1 : 0; border.color: root.accent }
+                        background: Rectangle { radius: 12; color: parent.hovered ? "#343854" : "transparent"; border.width: modelData.activated ? 1 : 0; border.color: root.styleFor("Dock").accent }
                         contentItem: Image { source: root.appIcon(modelData); fillMode: Image.PreserveAspectFit; sourceSize.width: 32; sourceSize.height: 32 }
                         ToolTip.visible: hovered
                         ToolTip.text: modelData.title
@@ -276,6 +488,7 @@ ShellRoot {
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         onVisibleChanged: if (visible) { query.text = ""; query.forceActiveFocus() }
         Card {
+            styleScope: "Launcher"
             anchors.fill: parent
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16
@@ -308,13 +521,14 @@ ShellRoot {
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
         Card {
+            styleScope: "Control Center"
             anchors.fill: parent
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 20; spacing: 12
                 RowLayout {
                     Caption { text: Qt.formatTime(root.now, "hh:mm"); font.pixelSize: 42; Layout.fillWidth: true }
-                    Pill { text: "Settings"; onClicked: root.showSettings("System") }
-                    Pill { text: "×"; onClicked: root.page = "" }
+                    Pill { styleScope: "Control Center"; text: "Settings"; onClicked: root.showSettings("System") }
+                    Pill { styleScope: "Control Center"; text: "×"; onClicked: root.page = "" }
                 }
                 Caption { text: Qt.formatDate(root.now, "dddd, d MMMM yyyy") }
                 Caption { text: "Volume" }
@@ -326,14 +540,14 @@ ShellRoot {
                     onMoved: if (enabled) Pipewire.defaultAudioSink.audio.volume = value
                 }
                 RowLayout {
-                    Pill { text: root.dnd ? "DND on" : "DND off"; onClicked: root.dnd = !root.dnd }
-                    Pill { text: "Brightness −"; onClicked: Quickshell.execDetached(["brightnessctl", "set", "5%-"]) }
-                    Pill { text: "Brightness +"; onClicked: Quickshell.execDetached(["brightnessctl", "set", "+5%"]) }
+                    Pill { styleScope: "Control Center"; text: root.dnd ? "DND on" : "DND off"; onClicked: root.dnd = !root.dnd }
+                    Pill { styleScope: "Control Center"; text: "Brightness −"; onClicked: Quickshell.execDetached(["brightnessctl", "set", "5%-"]) }
+                    Pill { styleScope: "Control Center"; text: "Brightness +"; onClicked: Quickshell.execDetached(["brightnessctl", "set", "+5%"]) }
                 }
                 RowLayout {
-                    Pill { text: "Wallpapers"; onClicked: root.showWallpapers() }
-                    Pill { text: "Notifications"; onClicked: root.toggle("notifications") }
-                    Pill { text: "Lock (planned)"; enabled: false }
+                    Pill { styleScope: "Control Center"; text: "Wallpapers"; onClicked: root.showWallpapers() }
+                    Pill { styleScope: "Control Center"; text: "Notifications"; onClicked: root.toggle("notifications") }
+                    Pill { styleScope: "Control Center"; text: "Lock (planned)"; enabled: false }
                 }
             }
         }
@@ -347,10 +561,11 @@ ShellRoot {
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Overlay
         Card {
+            styleScope: "Notifications"
             anchors.fill: parent
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 14
-                RowLayout { Caption { text: "Notifications"; Layout.fillWidth: true; font.pixelSize: 18 } Pill { text: "×"; onClicked: root.page = "" } }
+                RowLayout { Caption { text: "Notifications"; Layout.fillWidth: true; font.pixelSize: 18 } Pill { styleScope: "Notifications"; text: "×"; onClicked: root.page = "" } }
                 ListView {
                     Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                     model: notifications.trackedNotifications
@@ -375,6 +590,7 @@ ShellRoot {
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         Card {
+            styleScope: "Notifications"
             anchors.fill: parent
             Column {
                 anchors.fill: parent; anchors.margins: 12
@@ -393,6 +609,7 @@ ShellRoot {
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         onVisibleChanged: if (visible) ring.forceActiveFocus()
         Card {
+            styleScope: "Window Switcher"
             id: ring
             anchors.fill: parent; radius: width/2; focus: true
             Keys.onEscapePressed: root.page = ""
@@ -410,7 +627,7 @@ ShellRoot {
                     x: ring.width/2 - width/2 + 138*Math.cos(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2)
                     y: ring.height/2 - height/2 + 138*Math.sin(index*2*Math.PI/Math.min(root.windows.length,12)-Math.PI/2)
                     onClicked: { root.selectedWindow = index; root.confirmWindow() }
-                    background: Rectangle { radius: 24; color: index === root.selectedWindow ? "#3d4263" : "#22263c"; border.width: 2; border.color: index === root.selectedWindow ? root.accent : "transparent" }
+                    background: Rectangle { radius: 24; color: index === root.selectedWindow ? "#3d4263" : "#22263c"; border.width: 2; border.color: index === root.selectedWindow ? root.styleFor("Window Switcher").accent : "transparent" }
                     contentItem: Image { source: root.appIcon(modelData); fillMode: Image.PreserveAspectFit; sourceSize.width: 32; sourceSize.height: 32 }
                 }
             }
@@ -423,7 +640,7 @@ ShellRoot {
         title: "Deyra Settings"
         implicitWidth: 900; implicitHeight: 570
         color: "#10121e"
-        onClosed: if (root.page === "settings") root.page = ""
+        onVisibleChanged: if (!visible && root.page === "settings") root.page = ""
         FileDialog {
             id: localPicker
             title: "Choose wallpaper"
@@ -443,7 +660,7 @@ ShellRoot {
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 8
                     Caption { text: "DEYRA"; color: root.accent; font.pixelSize: 24 }
-                    Caption { text: "Shell  /  0.1 alpha"; opacity: .7 }
+                    Caption { text: "Shell  /  0.1.1 alpha"; opacity: .7 }
                     Repeater {
                         model: ["Themes","Edit Mode","Community","Profile","System","Performance","Updates"]
                         delegate: Pill { required property string modelData; Layout.fillWidth: true; text: modelData; highlighted: root.settingsTab === modelData; onClicked: root.settingsTab = modelData }
@@ -465,7 +682,8 @@ ShellRoot {
         Component {
             id: themesPage
             Section {
-                Caption { text: "Deyra Default · inspired by TQQ Rice"; font.pixelSize: 17 }
+                Caption { text: "Current preset: " + prefs.activePreset; font.pixelSize: 17 }
+                Pill { text: "Browse all 12 presets"; onClicked: { root.editTab = "Presets"; root.settingsTab = "Edit Mode" } }
                 Flow {
                     Layout.fillWidth: true; spacing: 12
                     Repeater {
@@ -491,14 +709,70 @@ ShellRoot {
                 Flow {
                     Layout.fillWidth: true; spacing: 6
                     Repeater {
-                        model: ["Bar","Dock","Desktop Widgets","Launcher","Control Center","Lock Screen","Notifications","Window Switcher","Wallpapers"]
+                        model: ["Presets","Bar","Dock","Desktop Widgets","Launcher","Control Center","Lock Screen","Notifications","Window Switcher","Wallpapers"]
                         delegate: Pill { required property string modelData; text: modelData; highlighted: root.editTab === modelData; onClicked: root.editTab = modelData }
                     }
                 }
                 Loader {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    sourceComponent: root.editTab === "Wallpapers" ? wallpapersPage : root.editTab === "Bar" ? barPage : root.editTab === "Dock" ? dockPage : root.editTab === "Desktop Widgets" ? widgetsPage : root.editTab === "Notifications" ? notificationsPage : pendingPage
+                    sourceComponent: root.editTab === "Presets" ? presetsPage : root.editTab === "Wallpapers" ? wallpapersPage : root.editTab === "Bar" ? barPage : root.editTab === "Dock" ? dockPage : root.editTab === "Desktop Widgets" ? widgetsPage : root.editTab === "Notifications" ? notificationsPage : pendingPage
                 }
+            }
+        }
+        Component {
+            id: presetsPage
+            Section {
+                RowLayout {
+                    Caption { text: "Apply to:" }
+                    ComboBox {
+                        model: ["All"].concat(root.supportedScopes)
+                        currentIndex: Math.max(0, model.indexOf(root.presetScope))
+                        onActivated: root.presetScope = currentText
+                        Layout.fillWidth: true
+                    }
+                    Pill { text: "Use global"; visible: root.presetScope !== "All"; onClicked: root.resetComponent(root.presetScope) }
+                }
+                Caption { text: "Selected: " + root.componentPreview(root.presetScope); color: root.accent }
+                GridView {
+                    id: presetGrid
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    clip: true; cellWidth: Math.max(190, width / 3); cellHeight: 144
+                    model: root.presets
+                    delegate: Rectangle {
+                        id: presetCard
+                        required property var modelData
+                        width: presetGrid.cellWidth - 8; height: 136
+                        radius: 13; color: "#202437"
+                        border.width: 1
+                        border.color: root.componentPreview(root.presetScope) === modelData.name ? root.accent : "#383e58"
+                        ColumnLayout {
+                            anchors.fill: parent; anchors.margins: 8; spacing: 4
+                            Rectangle {
+                                Layout.fillWidth: true; Layout.preferredHeight: 32
+                                color: Qt.alpha(modelData.bg, modelData.opacity); radius: modelData.radius / 2
+                                Row {
+                                    anchors.centerIn: parent; spacing: 6
+                                    Repeater {
+                                        model: [24, 46, 24]
+                                        delegate: Rectangle {
+                                            required property int modelData
+                                            width: modelData; height: 16
+                                            color: "#303449"; radius: 7
+                                            border.color: presetCard.modelData.accent
+                                        }
+                                    }
+                                }
+                            }
+                            Caption { text: modelData.name; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Caption { text: modelData.author; opacity: .7; font.pixelSize: 10; Layout.fillWidth: true; elide: Text.ElideRight }
+                            RowLayout {
+                                Pill { text: "Apply"; Layout.fillWidth: true; onClicked: root.applyPreset(modelData, root.presetScope) }
+                                Pill { text: "Source"; onClicked: Qt.openUrlExternally(modelData.url) }
+                            }
+                        }
+                    }
+                }
+                Caption { text: "Deyra-made adaptations, not original shell installations."; opacity: .7; Layout.fillWidth: true; wrapMode: Text.Wrap }
             }
         }
         Component {
@@ -577,9 +851,9 @@ ShellRoot {
         Component {
             id: communityPage
             Section {
-                Caption { text: "Preset roadmap · not installed or copied"; font.pixelSize: 17 }
-                Flow { Layout.fillWidth: true; spacing: 7; Repeater { model: root.presetNames; delegate: Pill { required property string modelData; text: modelData; enabled: false } } }
-                Caption { text: "Author and license review required before integration."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Caption { text: "12 Deyra preset adaptations available"; font.pixelSize: 17 }
+                Pill { text: "Open preset library"; onClicked: { root.editTab = "Presets"; root.settingsTab = "Edit Mode" } }
+                Caption { text: "Third-party widgets and upstream code ports require separate license review."; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 Item { Layout.fillHeight: true }
             }
         }
@@ -611,6 +885,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.1 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.1.1 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
