@@ -77,7 +77,7 @@ ShellRoot {
         if (!runtimeSupported(name)) return "Unsupported on current compositor"
         if (externalShell === name) return "Original runtime launched"
         const info = packageInfo(name)
-        if (info.managed) return "Installed · " + info.commit
+        if (info.managed) return (info.ready ? "Installed" : "Installed · runtime unavailable") + (info.commit ? " · " + info.commit : "")
         return info.recipe ? "Managed installation available" : "Upstream install required"
     }
     function selectOriginal(name) {
@@ -2448,8 +2448,8 @@ ShellRoot {
                         Caption { text: root.packagePlanAction + " · " + root.packagePlanName; font.weight: Font.DemiBold }
                         Muted {
                             Layout.fillWidth: true; wrapMode: Text.Wrap
-                            text: root.packagePlanAction === "remove"
-                                ? "Remove Deyra-managed runtime versions only. Personal settings and shared packages are kept."
+                            text: root.packagePlanAction === "rollback" ? "Select the previous complete managed version. Your personal configuration is retained."
+                                : root.packagePlanAction === "remove" ? "Remove Deyra-managed runtime versions or the Dux package installed by Deyra. Personal settings and shared packages are kept."
                                 : "Install original sources and dependencies. APT may ask for administrator authentication, but package removal is prohibited. Existing compositor files are not replaced by Deyra's installer. The upstream shell may manage its own settings."
                         }
                         RowLayout {
@@ -2535,7 +2535,8 @@ ShellRoot {
                                     onClicked: root.selectOriginal(originalCard.modelData.name)
                                 }
                                 Pill { text: "Remove"; visible: originalCard.info.managed; enabled: originalCard.canModify; onClicked: root.preparePackage(originalCard.modelData.name,"remove") }
-                                Pill { text: "Source"; onClicked: Qt.openUrlExternally(originalCard.modelData.url) }
+                                Pill { text: "Rollback"; visible: !!originalCard.info.rollback; enabled: originalCard.canModify; onClicked: root.preparePackage(originalCard.modelData.name,"rollback") }
+                                Pill { text: "Source"; visible: !originalCard.info.rollback; onClicked: Qt.openUrlExternally(originalCard.modelData.url) }
                             }
                         }
                     }
