@@ -264,6 +264,387 @@ ShellRoot {
         const layouts = layoutProfiles[styleFor(scope).name] || layoutProfiles["TQQ Rice"]
         return idx >= 0 ? layouts[idx] : "default"
     }
+    // Data-only translations of inspected upstream settings. No upstream code is executed.
+    readonly property var sourceProfiles: [
+        {
+            "name": "TQQ Rice",
+            "repo": "zadrotov7000/TQQ-Niri-rice",
+            "path": "config/waybar/config",
+            "license": "GPL-3.0",
+            "left": [
+                "launcher",
+                "workspaces"
+            ],
+            "center": [
+                "clock"
+            ],
+            "right": [
+                "disk",
+                "notifications",
+                "network",
+                "volume",
+                "settings"
+            ],
+            "height": 40,
+            "spacing": 7,
+            "margin": 12,
+            "face": "pills",
+            "description": "Clock and storage; native equivalents of the original island bar."
+        },
+        {
+            "name": "Noctalia",
+            "repo": "noctalia-dev/noctalia",
+            "path": "example.toml",
+            "license": "MIT",
+            "left": [
+                "launcher",
+                "wallpaper",
+                "workspaces"
+            ],
+            "center": [
+                "clock"
+            ],
+            "right": [
+                "media",
+                "notifications",
+                "network",
+                "volume",
+                "brightness",
+                "battery",
+                "control",
+                "settings"
+            ],
+            "height": 34,
+            "spacing": 6,
+            "margin": 180,
+            "face": "pills",
+            "description": "Example TOML start/center/end ordering; floating launcher and inset bar."
+        },
+        {
+            "name": "DankMaterialShell",
+            "repo": "duxlabs-dev/dux-shell",
+            "path": "quickshell/Common/BarWidgetCatalog.qml",
+            "license": "MIT",
+            "left": [
+                "launcher",
+                "workspaces",
+                "title"
+            ],
+            "center": [
+                "clock",
+                "media"
+            ],
+            "right": [
+                "cpu",
+                "memory",
+                "network",
+                "volume",
+                "battery",
+                "notifications",
+                "control"
+            ],
+            "height": 40,
+            "spacing": 6,
+            "margin": 4,
+            "face": "pills",
+            "description": "Widget catalog sections and pill workspace defaults; supported subset."
+        },
+        {
+            "name": "Caelestia",
+            "repo": "caelestia-dots/shell",
+            "path": "plugin/src/Caelestia/Config/barconfig.hpp",
+            "license": "GPL-3.0",
+            "left": [
+                "launcher",
+                "workspaces"
+            ],
+            "center": [
+                "title"
+            ],
+            "right": [
+                "clock",
+                "network",
+                "battery",
+                "settings"
+            ],
+            "height": 38,
+            "spacing": 6,
+            "margin": 8,
+            "face": "morph",
+            "description": "Logo/workspaces/active window/clock/status order, horizontally adapted."
+        },
+        {
+            "name": "Illogical Impulse",
+            "repo": "end-4/dots-hyprland",
+            "path": "dots/.config/quickshell/ii/modules/ii/bar/BarContent.qml",
+            "license": "GPL-3.0",
+            "left": [
+                "launcher",
+                "title"
+            ],
+            "center": [
+                "memory",
+                "media",
+                "workspaces",
+                "clock",
+                "battery"
+            ],
+            "right": [
+                "volume",
+                "network",
+                "control"
+            ],
+            "height": 42,
+            "spacing": 6,
+            "margin": 8,
+            "face": "pills",
+            "description": "Central resources, media, workspaces and clock; left active title."
+        },
+        {
+            "name": "HyDE",
+            "repo": "HyDE-Project/HyDE",
+            "path": "Configs/.config/waybar/config.jsonc",
+            "license": "GPL-3.0",
+            "left": [
+                "launcher",
+                "workspaces",
+                "title"
+            ],
+            "center": [
+                "clock"
+            ],
+            "right": [
+                "brightness",
+                "network",
+                "volume",
+                "battery",
+                "cpu",
+                "notifications",
+                "settings"
+            ],
+            "height": 38,
+            "spacing": 5,
+            "margin": 8,
+            "face": "dots",
+            "description": "Leaf/pill group configuration; original taskbar represented by title."
+        },
+        {
+            "name": "ML4W",
+            "repo": "mylinuxforwork/dotfiles",
+            "path": "dotfiles/.config/waybar/themes/ml4w/config",
+            "license": "GPL-3.0",
+            "left": [
+                "launcher",
+                "title"
+            ],
+            "center": [
+                "workspaces"
+            ],
+            "right": [
+                "volume",
+                "network",
+                "battery",
+                "cpu",
+                "notifications",
+                "settings",
+                "clock"
+            ],
+            "height": 40,
+            "spacing": 0,
+            "margin": 0,
+            "face": "numbers",
+            "description": "App menu and active window left; workspaces center; clock at far right."
+        },
+        {
+            "name": "iNiR",
+            "repo": "snowarch/iNiR",
+            "path": "defaults/config.json",
+            "license": "GPL-3.0",
+            "left": [
+                "launcher",
+                "title",
+                "workspaces"
+            ],
+            "center": [
+                "clock"
+            ],
+            "right": [
+                "media",
+                "network",
+                "volume",
+                "battery",
+                "control"
+            ],
+            "height": 40,
+            "spacing": 6,
+            "margin": 8,
+            "face": "pills",
+            "description": "Native Niri layout adaptation; source Alt+Tab default timing and compact option available."
+        },
+        {
+            "name": "DotFriedRice",
+            "repo": "nickjj/dotfriedrice",
+            "path": ".config/waybar/config.jsonc",
+            "license": "MIT",
+            "left": [
+                "launcher",
+                "workspaces"
+            ],
+            "center": [
+                "clock"
+            ],
+            "right": [
+                "media",
+                "volume",
+                "network",
+                "cpu",
+                "battery"
+            ],
+            "height": 24,
+            "spacing": 0,
+            "margin": 0,
+            "face": "numbers",
+            "description": "Compact 24px bar and supported subset of its actual module order."
+        },
+        {
+            "name": "Ambxst",
+            "repo": "Axenide/Ambxst",
+            "path": "config/defaults/bar.js",
+            "license": "AGPL-3.0",
+            "left": [
+                "launcher",
+                "workspaces"
+            ],
+            "center": [
+                "clock"
+            ],
+            "right": [
+                "media",
+                "network",
+                "volume",
+                "control"
+            ],
+            "height": 42,
+            "spacing": 4,
+            "margin": 8,
+            "face": "pills",
+            "description": "Top-edge default, optional six-pixel frame and 24-hour clock."
+        },
+        {
+            "name": "DarkShadow",
+            "repo": "shadowww-dev/DarkShadowShell",
+            "path": "quickshell/rice-desktop/Bar.qml",
+            "license": "MIT",
+            "left": [
+                "launcher",
+                "workspaces",
+                "title"
+            ],
+            "center": [
+                "clock"
+            ],
+            "right": [
+                "media",
+                "volume",
+                "network",
+                "battery",
+                "notifications",
+                "settings"
+            ],
+            "height": 38,
+            "spacing": 6,
+            "margin": 8,
+            "face": "pills",
+            "description": "Original left/center/right fallback structure, dynamic clock island."
+        },
+        {
+            "name": "Serpantinum",
+            "repo": "ilyamiro/serpantinum",
+            "path": "src/quickshell/bar/BarModuleRegistry.qml",
+            "license": "Unverified",
+            "left": [
+                "launcher",
+                "workspaces"
+            ],
+            "center": [
+                "clock",
+                "media"
+            ],
+            "right": [
+                "network",
+                "volume",
+                "battery",
+                "settings"
+            ],
+            "height": 40,
+            "spacing": 6,
+            "margin": 8,
+            "face": "morph",
+            "description": "Registry-derived pills, numbers, morph and trace workspace faces; Deyra ordering."
+        }
+    ]
+    readonly property var barCatalog: [
+        {key:"launcher",title:"Applications"},{key:"workspaces",title:"Workspaces"},
+        {key:"title",title:"Active window"},{key:"clock",title:"Clock / calendar"},
+        {key:"media",title:"Now playing"},{key:"volume",title:"Volume"},
+        {key:"network",title:"Network"},{key:"notifications",title:"Notifications"},
+        {key:"battery",title:"Battery"},{key:"disk",title:"Disk usage"},
+        {key:"cpu",title:"CPU load"},{key:"memory",title:"Memory"},
+        {key:"brightness",title:"Brightness"},{key:"wallpaper",title:"Wallpapers"},
+        {key:"control",title:"Control center"},{key:"settings",title:"Settings"}
+    ]
+    readonly property var selectedBarSource: sourceProfiles.find(function(p) {return p.name === styleFor("Bar").name}) || sourceProfiles[0]
+    readonly property var effectiveBarLayout: prefs.customBarLayout && Array.isArray(prefs.customBarLayout.left) && Array.isArray(prefs.customBarLayout.center) && Array.isArray(prefs.customBarLayout.right) ? prefs.customBarLayout : selectedBarSource
+    readonly property string workspaceFace: prefs.workspaceFace === "source" ? selectedBarSource.face : prefs.workspaceFace
+    readonly property var sourceForBar: selectedBarSource
+    function sourceLink(p) {
+        const branch = ["HyDE","DotFriedRice","Serpantinum","DankMaterialShell"].indexOf(p.name) >= 0 ? "master" : "main"
+        return "https://github.com/" + p.repo + "/blob/" + branch + "/" + p.path
+    }
+    function moduleTitle(key) { const item = barCatalog.find(function(m){return m.key === key}); return item ? item.title : key }
+    function barLayoutCopy() {
+        const v = effectiveBarLayout
+        return {left:v.left.slice(), center:v.center.slice(), right:v.right.slice()}
+    }
+    function addBarModule(section,key) {
+        if (["left","center","right"].indexOf(section)<0 || !barCatalog.some(function(m){return m.key===key})) return
+        const next = barLayoutCopy()
+        for (const k of ["left","center","right"]) next[k] = next[k].filter(function(m){return m!==key})
+        next[section].push(key)
+        prefs.customBarLayout = next
+    }
+    function moveBarModule(section,index,delta) {
+        const next = barLayoutCopy(), list = next[section]
+        if (!list || index<0 || index>=list.length || index+delta<0 || index+delta>=list.length) return
+        const temp = list[index]; list[index] = list[index+delta]; list[index+delta] = temp
+        prefs.customBarLayout = next
+    }
+    function removeBarModule(section,index) {
+        const next = barLayoutCopy()
+        if (!next[section] || index<0 || index>=next[section].length) return
+        next[section].splice(index,1)
+        prefs.customBarLayout = next
+    }
+    function applySourceBar(name) {
+        const p = sourceProfiles.find(function(item){return item.name===name})
+        if (!p) return
+        prefs.customBarLayout = ({})
+        prefs.workspaceFace = "source"
+        prefs.barSpacing = p.spacing
+        prefs.barInset = p.margin
+        prefs.barHeight = p.height
+        prefs.barBottom = false
+    }
+    property string batteryText: ""
+    property string diskText: ""
+    property string memoryText: ""
+    property string loadText: ""
+    property string mediaText: ""
+    property string brightnessText: ""
+    function activeTitle() {
+        const focused = windows.find(function(w){return w.activated})
+        return focused ? focused.title : ""
+    }
     function styleFor(scope) {
         const p = (prefs.componentStyles || {})[scope]
         return p || {name: prefs.activePreset, accent: prefs.accent, bg: prefs.background, opacity: prefs.opacity, radius: prefs.radius}
@@ -280,11 +661,12 @@ ShellRoot {
             prefs.desktopClock = preset.clock
             prefs.activePreset = preset.name
             prefs.componentStyles = ({})
+            applySourceBar(preset.name)
         } else if (supportedScopes.indexOf(scope) >= 0) {
             const next = Object.assign({}, prefs.componentStyles)
             next[scope] = {name: preset.name, accent: preset.accent, bg: preset.bg, opacity: preset.opacity, radius: preset.radius}
             prefs.componentStyles = next
-            if (scope === "Bar") { prefs.barHeight = preset.height; prefs.barBottom = preset.bottom }
+            if (scope === "Bar") applySourceBar(preset.name)
         } else return
         status = preset.name + " applied to " + scope
     }
@@ -438,6 +820,33 @@ ShellRoot {
         }
     }
     Timer { interval: 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!networkStatus.running) networkStatus.running = true }
+    // Linux status information via fixed commands; never run commands from imported configs.
+    Process {
+        id: machineStats
+        command: ["sh","-c","df -P / | awk 'NR==2{print $5}'; awk '/^MemTotal:/{t=$2}/^MemAvailable:/{a=$2}END{if(t>0)printf \"%d%%\\n\",100*(t-a)/t}' /proc/meminfo; cut -d' ' -f1 /proc/loadavg; for b in /sys/class/power_supply/BAT*/capacity; do if [ -r \"$b\" ]; then cat \"$b\"; break; fi; done"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const rows = text.trim().split("\n")
+                root.diskText = rows[0] || ""
+                root.memoryText = rows[1] || ""
+                root.loadText = rows[2] || ""
+                root.batteryText = /^\d+$/.test(rows[3] || "") ? rows[3] + "%" : ""
+            }
+        }
+    }
+    Timer { interval: 12000; running: true; repeat: true; triggeredOnStart: true; onTriggered: if(!machineStats.running) machineStats.running = true }
+    Process {
+        id: mediaInfo
+        command: ["sh","-c","if command -v playerctl >/dev/null 2>&1; then playerctl metadata --format '{{title}}' 2>/dev/null; fi"]
+        stdout: StdioCollector { onStreamFinished: root.mediaText = text.trim().slice(0,80) }
+    }
+    Timer { interval: 3500; running: root.effectiveBarLayout.left.concat(root.effectiveBarLayout.center,root.effectiveBarLayout.right).indexOf("media") >= 0; repeat: true; triggeredOnStart: true; onTriggered: if(!mediaInfo.running) mediaInfo.running = true }
+    Process {
+        id: brightnessInfo
+        command: ["sh","-c","if command -v brightnessctl >/dev/null 2>&1; then brightnessctl -m 2>/dev/null | cut -d, -f4 | head -n1; fi"]
+        stdout: StdioCollector { onStreamFinished: root.brightnessText = text.trim() }
+    }
+    Timer { interval: 8000; running: root.effectiveBarLayout.left.concat(root.effectiveBarLayout.center,root.effectiveBarLayout.right).indexOf("brightness") >= 0; repeat: true; triggeredOnStart: true; onTriggered: if(!brightnessInfo.running) brightnessInfo.running = true }
     FileView {
         id: configFile
         path: root.statePath + "/settings.json"
@@ -453,6 +862,12 @@ ShellRoot {
             property real opacity: 0.91
             property int radius: 17
             property int barHeight: 42
+            property int barSpacing: 6
+            property int barInset: 12
+            property var customBarLayout: ({})
+            property string workspaceFace: "source"
+            property bool clock12h: false
+            property bool barFrame: false
             property bool barBottom: false
             property bool dockEnabled: true
             property bool desktopClock: false
@@ -673,6 +1088,15 @@ ShellRoot {
             case "wifi": for(let r=5;r<=11;r+=3){c.beginPath();c.arc(12,17,r,-2.38,-.76);c.stroke()} c.beginPath();c.arc(12,18,1.2,0,2*Math.PI);c.fill();break
             case "wired": c.strokeRect(5,5,14,10);path([12,15,12,20,7,20]);break
             case "offline": circle(12,12,8);path([6,6,18,18]);break
+            case "battery": c.strokeRect(3,7,16,10);path([21,10,21,14]);c.fillRect(5,9,10,6);break
+            case "disk": c.strokeRect(4,5,16,14);path([4,14,20,14]);circle(16,17,0.7);break
+            case "cpu": c.strokeRect(7,7,10,10);for(let i=8;i<=16;i+=4){path([i,3,i,7]);path([i,17,i,21]);path([3,i,7,i]);path([17,i,21,i])}break
+            case "memory": c.strokeRect(3,7,18,10);for(let i=6;i<=18;i+=4){path([i,10,i,14]);path([i,17,i,20])}break
+            case "media": path([9,17,9,5,19,3,19,15]);circle(6,17,3);circle(16,15,3);break
+            case "brightness": circle(12,12,4);for(let i=0;i<8;i++){const a=i*Math.PI/4;path([12+7*Math.cos(a),12+7*Math.sin(a),12+10*Math.cos(a),12+10*Math.sin(a)])}break
+            case "wallpaper": c.strokeRect(3,4,18,16);path([4,17,10,10,14,14,17,11,20,14]);circle(16,8,1);break
+            case "control": path([4,6,20,6]);path([4,12,20,12]);path([4,18,20,18]);circle(9,6,2);circle(15,12,2);circle(10,18,2);break
+            case "clock": circle(12,12,9);path([12,6,12,12,16,14]);break
             default: c.strokeRect(5,5,14,14);break
             }
             c.restore()
@@ -683,9 +1107,9 @@ ShellRoot {
         property string glyph: "search"
         property string label: ""
         property string detail: ""
-        implicitWidth: iconRow.implicitWidth + 20
-        implicitHeight: 32
-        padding: 10
+        implicitWidth: iconRow.implicitWidth + (prefs.barHeight < 32 ? 12 : 20)
+        implicitHeight: Math.min(32, Math.max(20,prefs.barHeight-4))
+        padding: prefs.barHeight < 32 ? 4 : 10
         contentItem: Row {
             id: iconRow
             spacing: 6
@@ -745,6 +1169,124 @@ ShellRoot {
             }
         }
     }
+    // Registry-driven native widgets. Upstream data determines placement, not a hardcoded row.
+    component BarModule: Item {
+        id: module
+        property string moduleKey: ""
+        property string outputName: ""
+        readonly property bool available: moduleKey === "volume" ? prefs.showAudio : moduleKey === "notifications" ? prefs.showNotifications : moduleKey === "battery" ? root.batteryText !== "" : moduleKey === "media" ? root.mediaText !== "" : moduleKey === "brightness" ? root.brightnessText !== "" : moduleKey === "title" ? root.activeTitle() !== "" : true
+        implicitWidth: available && moduleLoader.item ? (moduleKey === "title" ? Math.min(146,moduleLoader.item.contentWidth) : moduleLoader.item.implicitWidth) : 0
+        implicitHeight: Math.min(32, Math.max(20,prefs.barHeight-4))
+        width: implicitWidth; height: implicitHeight
+        visible: available && width > 0
+        Loader {
+            id: moduleLoader
+            anchors.fill: parent
+            active: module.available
+            sourceComponent: module.moduleKey === "workspaces" ? workspaceModule : module.moduleKey === "title" ? titleModule : module.moduleKey === "clock" ? clockModule : statusModule
+        }
+        Component {
+            id: titleModule
+            Caption {
+                deyraTextScope: "Bar"
+                width: Math.min(146, contentWidth)
+                text: root.activeTitle()
+                elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+        Component {
+            id: clockModule
+            BarPill {
+                implicitHeight: module.implicitHeight
+                text: Qt.formatDateTime(root.now, prefs.clock12h ? "h:mm AP  ·  d MMM" : "hh:mm  ·  d MMM")
+                onClicked: root.toggle("control")
+            }
+        }
+        Component {
+            id: workspaceModule
+            Item {
+                implicitWidth: workRow.implicitWidth > 0 ? workRow.implicitWidth+12 : 0
+                implicitHeight: module.implicitHeight
+                Rectangle {
+                    anchors.fill: parent
+                    color: root.layoutFor("Bar")==="islands" ? Qt.alpha(root.styleFor("Bar").bg,root.styleFor("Bar").opacity) : "transparent"
+                    radius: Math.min(16,root.styleFor("Bar").radius)
+                }
+                Row {
+                    id: workRow
+                    anchors.centerIn: parent; spacing: root.workspaceFace === "trace" ? 2 : 5
+                    Repeater {
+                        model: root.workspacesFor(module.outputName)
+                        delegate: Rectangle {
+                            id: wsDot
+                            required property var modelData
+                            readonly property bool active: modelData.is_active
+                            readonly property string face: root.workspaceFace
+                            width: face === "numbers" ? 19 : face === "dots" ? 9 : face === "trace" ? 13 : active ? 26 : 9
+                            height: face === "numbers" ? 19 : face === "morph" ? (active ? 15 : 9) : 9
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: face === "morph" && active ? 4 : height/2
+                            color: active ? root.styleFor("Bar").accent : root.tint(root.styleFor("Bar").bg,.28)
+                            Behavior on width { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
+                            Behavior on height { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
+                            Behavior on radius { NumberAnimation { duration: root.motion } }
+                            Behavior on color { ColorAnimation { duration: root.motion } }
+                            Caption { anchors.centerIn: parent; visible: wsDot.face === "numbers"; text: String(wsDot.modelData.idx); font.pixelSize: 10; color: wsDot.active ? root.contrastingText(root.styleFor("Bar").accent) : root.contrastingText(root.styleFor("Bar").bg) }
+                            MouseArea { anchors.fill: parent; anchors.margins: -3; cursorShape: Qt.PointingHandCursor; onClicked: root.activateWorkspace(wsDot.modelData) }
+                        }
+                    }
+                }
+            }
+        }
+        Component {
+            id: statusModule
+            BarIconButton {
+                implicitHeight: module.implicitHeight
+                glyph: ({launcher:"search",volume:"audio",network:root.networkKind,notifications:"bell",settings:"settings",control:"control",wallpaper:"wallpaper",battery:"battery",disk:"disk",cpu:"cpu",memory:"memory",media:"media",brightness:"brightness"})[module.moduleKey] || "settings"
+                detail: module.moduleKey === "network" ? root.networkLabel : module.moduleKey === "media" ? root.mediaText : root.moduleTitle(module.moduleKey)
+                label: {
+                    switch(module.moduleKey) {
+                        case "volume": return Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? Math.round(Pipewire.defaultAudioSink.audio.volume*100)+"%" : ""
+                        case "notifications": return notifications.trackedNotifications.values.length ? String(notifications.trackedNotifications.values.length) : ""
+                        case "battery": return root.batteryText
+                        case "disk": return root.diskText
+                        case "memory": return root.memoryText
+                        case "cpu": return root.loadText
+                        case "media": return root.mediaText.length>17 ? root.mediaText.slice(0,16)+"…" : root.mediaText
+                        case "brightness": return root.brightnessText
+                        default: return ""
+                    }
+                }
+                onClicked: {
+                    switch(module.moduleKey) {
+                        case "launcher": root.toggle("launcher"); break
+                        case "settings": root.toggle("settings"); break
+                        case "wallpaper": root.showWallpapers(); break
+                        case "notifications": root.toggle("notifications"); break
+                        case "media": Quickshell.execDetached(["playerctl","play-pause"]); break
+                        case "disk": case "memory": case "cpu": case "battery": root.showSettings("Profile"); break
+                        default: root.toggle("control")
+                    }
+                }
+            }
+        }
+    }
+    component BarSection: Row {
+        id: section
+        property var modules: []
+        property string outputName: ""
+        spacing: prefs.barSpacing
+        Repeater {
+            model: section.modules
+            delegate: BarModule {
+                required property string modelData
+                moduleKey: modelData
+                outputName: section.outputName
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
     Variants {
         model: Quickshell.screens
         delegate: PanelWindow {
@@ -758,78 +1300,57 @@ ShellRoot {
             Item {
                 id: barArea
                 anchors.fill: parent
-                readonly property string mode: barWindow.mode
+                anchors.leftMargin: Math.min(prefs.barInset,Math.max(0,(barWindow.width-950)/2+12))
+                anchors.rightMargin: anchors.leftMargin
+                readonly property string output: barWindow.screen ? barWindow.screen.name : ""
                 Card {
-                    styleScope: "Bar"; visible: barArea.mode === "full"
-                    anchors.fill: parent; anchors.margins: 2
-                    radius: 4
-                }
-                Card {
-                    styleScope: "Bar"; visible: barArea.mode === "groups"
-                    anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
-                    width: leftBar.implicitWidth + 12; height: 36
-                }
-                Card {
-                    styleScope: "Bar"; visible: barArea.mode === "groups"
-                    anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                    width: rightBar.implicitWidth + 12; height: 36
-                }
-                Row {
-                    id: leftBar
-                    anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
-                    spacing: 5
-                    BarIconButton { glyph: "search"; detail: "Applications"; onClicked: root.toggle("launcher") }
-                    Card {
-                        visible: workspaceRow.count > 0 && barArea.mode !== "minimal"
-                        styleScope: "Bar"
-                        height: 32; width: workspaceLayout.implicitWidth+16
-                        border.width: 0
-                        Row {
-                            id: workspaceLayout
-                            anchors.centerIn: parent; spacing: 6
-                            Repeater {
-                                id: workspaceRow
-                                model: root.workspacesFor(barWindow.screen ? barWindow.screen.name : "")
-                                delegate: Rectangle {
-                                    id: workspaceDot
-                                    required property var modelData
-                                    width: modelData.is_active ? 27 : 9
-                                    height: 9; radius: 5
-                                    color: modelData.is_active ? root.styleFor("Bar").accent : root.tint(root.styleFor("Bar").bg,.28)
-                                    Behavior on width { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
-                                    Behavior on color { ColorAnimation { duration: root.motion } }
-                                    MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.activateWorkspace(workspaceDot.modelData) }
-                                }
-                            }
-                        }
-                    }
-                    Caption { visible: barArea.mode === "minimal"; anchors.verticalCenter: parent.verticalCenter; width: Math.min(170, barArea.width/5); elide: Text.ElideRight; text: root.windows.length ? root.windows[0].title : "Desktop" }
+                    styleScope: "Bar"
+                    visible: barWindow.mode === "full" || barWindow.mode === "minimal" || prefs.barFrame
+                    anchors.fill: parent
+                    anchors.topMargin: 2
+                    anchors.bottomMargin: 2
+                    radius: barWindow.mode==="minimal" ? 3 : root.styleFor("Bar").radius
+                    border.width: prefs.barFrame ? Math.min(6,prefs.barHeight/5) : 1
                 }
                 Card {
                     styleScope: "Bar"
-                    visible: ["notch","dynamic","groups"].indexOf(barArea.mode) >= 0
+                    visible: barWindow.mode === "groups"
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    width: leftBar.implicitWidth+10; height: Math.min(36,prefs.barHeight)
+                }
+                Card {
+                    styleScope: "Bar"
+                    visible: barWindow.mode === "groups"
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    width: rightBar.implicitWidth+10; height: Math.min(36,prefs.barHeight)
+                }
+                Card {
+                    styleScope: "Bar"
+                    visible: ["notch","dynamic","groups"].indexOf(barWindow.mode)>=0
                     anchors.centerIn: parent
-                    width: barArea.mode === "dynamic" && islandHover.hovered ? 230 : Math.max(110, central.implicitWidth+12)
-                    height: Math.min(38, barArea.height)
-                    radius: barArea.mode === "notch" ? 10 : 22
+                    width: centerBar.implicitWidth + (barWindow.mode==="dynamic" && centerHover.hovered ? 36 : 14)
+                    height: Math.min(36,prefs.barHeight)
+                    radius: barWindow.mode==="notch" ? 10 : 20
                     Behavior on width { NumberAnimation { duration: root.motion; easing.type: Easing.OutCubic } }
-                    
                 }
-                BarPill {
-                    id: central
-                    HoverHandler { id: islandHover }
+                Item {
+                    anchors { left: parent.left; right: centerBar.left; verticalCenter: parent.verticalCenter; rightMargin: 5 }
+                    height: prefs.barHeight
+                    clip: true
+                    BarSection { id: leftBar; anchors { left: parent.left; leftMargin: 5; verticalCenter: parent.verticalCenter } modules: root.effectiveBarLayout.left; outputName: barArea.output }
+                }
+                BarSection {
+                    id: centerBar
                     anchors.centerIn: parent
-                    text: barArea.mode === "dynamic" && islandHover.hovered ? Qt.formatDateTime(root.now, "hh:mm · d MMM") + (root.dnd ? " · DND" : "") : Qt.formatDateTime(root.now, "ddd  hh:mm")
-                    onClicked: root.toggle("control")
+                    modules: root.effectiveBarLayout.center
+                    outputName: barArea.output
+                    HoverHandler { id: centerHover }
                 }
-                Row {
-                    id: rightBar
-                    anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
-                    spacing: 5
-                    BarIconButton { visible: barArea.mode !== "minimal"; glyph: root.networkKind; detail: root.networkLabel; onClicked: root.toggle("control") }
-                    BarIconButton { visible: prefs.showAudio && barArea.mode !== "minimal"; glyph: "audio"; label: Pipewire.defaultAudioSink && Pipewire.defaultAudioSink.audio ? Math.round(Pipewire.defaultAudioSink.audio.volume*100) + "%" : ""; detail: "Volume"; onClicked: root.toggle("control") }
-                    BarIconButton { visible: prefs.showNotifications && barArea.mode !== "minimal"; glyph: "bell"; label: notifications.trackedNotifications.values.length > 0 ? String(notifications.trackedNotifications.values.length) : ""; detail: "Notifications"; onClicked: root.toggle("notifications") }
-                    BarIconButton { glyph: "settings"; detail: "Deyra Settings"; onClicked: root.toggle("settings") }
+                Item {
+                    anchors { left: centerBar.right; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 5 }
+                    height: prefs.barHeight
+                    clip: true
+                    BarSection { id: rightBar; anchors { right: parent.right; rightMargin: 5; verticalCenter: parent.verticalCenter } modules: root.effectiveBarLayout.right; outputName: barArea.output }
                 }
             }
         }
@@ -1187,7 +1708,7 @@ ShellRoot {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
                         RowLayout {
                             Layout.fillWidth: true
-                            Muted { text: "v0.2.0 alpha"; Layout.fillWidth: true }
+                            Muted { text: "v0.2.1 alpha"; Layout.fillWidth: true }
                             Pill { text: "×"; implicitWidth: 34; implicitHeight: 32; onClicked: root.page = "" }
                         }
                     }
@@ -1411,17 +1932,95 @@ ShellRoot {
         }
         Component {
             id: barPage
-            Section {
-                Caption { text: "Bar position" }
-                RowLayout {
-                    Pill { text: "Top"; deyraSelected: !prefs.barBottom; onClicked: prefs.barBottom = false }
-                    Pill { text: "Bottom"; deyraSelected: prefs.barBottom; onClicked: prefs.barBottom = true }
+            ScrollView {
+                id: barEditor
+                clip: true
+                contentWidth: availableWidth
+                ColumnLayout {
+                    width: barEditor.availableWidth
+                    spacing: 12
+                    Caption { text: "Source layouts"; font.pixelSize: 18; font.weight: Font.DemiBold }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        DeyraCombo {
+                            id: sourceSelect
+                            Layout.fillWidth: true
+                            model: root.sourceProfiles.map(function(p){return p.name})
+                            currentIndex: Math.max(0,model.indexOf(root.styleFor("Bar").name))
+                        }
+                        Pill {
+                            text: "Apply source layout"
+                            onClicked: {
+                                const p = root.presets.find(function(item){return item.name===sourceSelect.currentText})
+                                if (p) root.applyPreset(p,"Bar")
+                            }
+                        }
+                        Pill { text: "Source"; onClicked: Qt.openUrlExternally(root.sourceLink(root.selectedBarSource)) }
+                    }
+                    Muted { text: root.selectedBarSource.description + " · " + root.selectedBarSource.license; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                    RowLayout {
+                        Caption { text: "Position"; Layout.fillWidth: true }
+                        Pill { text: "Top"; deyraSelected: !prefs.barBottom; onClicked: prefs.barBottom = false }
+                        Pill { text: "Bottom"; deyraSelected: prefs.barBottom; onClicked: prefs.barBottom = true }
+                    }
+                    RowLayout { Caption { text: "Height"; Layout.fillWidth: true } Muted { text: prefs.barHeight+" px" } }
+                    DeyraSlider { Layout.fillWidth: true; from: 24; to: 64; stepSize: 1; value: prefs.barHeight; onMoved: prefs.barHeight = value }
+                    RowLayout { Caption { text: "Module spacing"; Layout.fillWidth: true } Muted { text: prefs.barSpacing+" px" } }
+                    DeyraSlider { Layout.fillWidth: true; from: 0; to: 16; stepSize: 1; value: prefs.barSpacing; onMoved: prefs.barSpacing = value }
+                    RowLayout { Caption { text: "Screen-edge inset"; Layout.fillWidth: true } Muted { text: prefs.barInset+" px (maximum)" } }
+                    DeyraSlider { Layout.fillWidth: true; from: 0; to: 180; stepSize: 2; value: prefs.barInset; onMoved: prefs.barInset = value }
+                    RowLayout {
+                        Caption { text: "Workspace face"; Layout.fillWidth: true }
+                        DeyraCombo {
+                            model: ["source","pills","numbers","dots","morph","trace"]
+                            currentIndex: Math.max(0,model.indexOf(prefs.workspaceFace))
+                            onActivated: prefs.workspaceFace = currentText
+                            Layout.preferredWidth: 150
+                        }
+                    }
+                    DeyraCheck { Layout.fillWidth: true; text: "12-hour clock"; checked: prefs.clock12h; onToggled: prefs.clock12h = checked }
+                    DeyraCheck { Layout.fillWidth: true; text: "Frame around bar"; checked: prefs.barFrame; onToggled: prefs.barFrame = checked }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: root.uiLine }
+                    RowLayout {
+                        Caption { text: "Modules"; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                        Pill { text: "Restore source order"; onClicked: root.applySourceBar(root.styleFor("Bar").name) }
+                    }
+                    Muted { text: "Choose a widget and section. Move modules with arrows or remove them; changes are saved immediately."; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                    RowLayout {
+                        DeyraCombo { id: modulePick; Layout.fillWidth: true; model: root.barCatalog.map(function(m){return m.title}) }
+                        DeyraCombo { id: sectionPick; model: ["left","center","right"]; Layout.preferredWidth: 120 }
+                        Pill { text: "Add"; onClicked: root.addBarModule(sectionPick.currentText,root.barCatalog[modulePick.currentIndex].key) }
+                    }
+                    Repeater {
+                        model: ["left","center","right"]
+                        delegate: ColumnLayout {
+                            id: editorSection
+                            required property string modelData
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Caption { text: editorSection.modelData.toUpperCase(); color: root.uiMuted; font.pixelSize: 11 }
+                            Repeater {
+                                model: root.effectiveBarLayout[editorSection.modelData] || []
+                                delegate: Rectangle {
+                                    id: editorRow
+                                    required property string modelData
+                                    required property int index
+                                    Layout.fillWidth: true; Layout.preferredHeight: 39
+                                    color: root.uiPanel; radius: 8
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.margins: 5
+                                        Caption { text: root.moduleTitle(editorRow.modelData); Layout.fillWidth: true; Layout.leftMargin: 8 }
+                                        Pill { text: "↑"; implicitWidth: 32; implicitHeight: 28; enabled: editorRow.index>0; onClicked: root.moveBarModule(editorSection.modelData,editorRow.index,-1) }
+                                        Pill { text: "↓"; implicitWidth: 32; implicitHeight: 28; enabled: editorRow.index<root.effectiveBarLayout[editorSection.modelData].length-1; onClicked: root.moveBarModule(editorSection.modelData,editorRow.index,1) }
+                                        Pill { text: "×"; implicitWidth: 32; implicitHeight: 28; onClicked: root.removeBarModule(editorSection.modelData,editorRow.index) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    DeyraCheck { Layout.fillWidth: true; text: "Show audio module"; checked: prefs.showAudio; onToggled: prefs.showAudio = checked }
+                    DeyraCheck { Layout.fillWidth: true; text: "Show notifications module"; checked: prefs.showNotifications; onToggled: prefs.showNotifications = checked }
                 }
-                Caption { text: "Height" }
-                DeyraSlider { Layout.fillWidth: true; from: 38; to: 60; stepSize: 1; value: prefs.barHeight; onMoved: prefs.barHeight = value }
-                DeyraCheck { text: "Audio module"; checked: prefs.showAudio; onToggled: prefs.showAudio = checked }
-                DeyraCheck { text: "Notifications module"; checked: prefs.showNotifications; onToggled: prefs.showNotifications = checked }
-                Item { Layout.fillHeight: true }
             }
         }
         Component { id: dockPage; Section { DeyraCheck { text: "Show running applications dock"; checked: prefs.dockEnabled; onToggled: prefs.dockEnabled = checked } Item { Layout.fillHeight: true } } }
@@ -1522,6 +2121,6 @@ ShellRoot {
                 Item { Layout.fillHeight: true }
             }
         }
-        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.0 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
+        Component { id: updatesPage; Section { Caption { text: "Deyra Shell 0.2.1 alpha" } Caption { text: "Updates currently use git pull. Automatic updates are planned." ; wrapMode: Text.Wrap; Layout.fillWidth: true } Item { Layout.fillHeight: true } } }
     }
 }
